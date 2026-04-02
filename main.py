@@ -7,12 +7,11 @@ app = FastAPI()
 def home():
     return {"status": "ok", "message": "API Python électrotechnique active"}
 
-
 @app.get("/wolfram")
 def wolfram_query(input: str):
     APP_ID = "LR29UEPJY6"
 
-    url = "http://api.wolframalpha.com/v1/result"
+    url = "https://api.wolframalpha.com/v1/result"
     params = {
         "i": input,
         "appid": APP_ID
