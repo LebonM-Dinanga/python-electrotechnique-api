@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: electrotechnique-gpt-tool
+    runtime: python
+    plan: free
+    region: frankfurt
+    autoDeployTrigger: commit
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.14.3
+      - key: ARXIV_DOMAIN_FILTER
+        value: electrical engineering
+      - key: WOLFRAM_APP_ID
+        sync: false
+      - key: CONTACT_EMAIL
+        value: lebonmukendi17@gmail.com

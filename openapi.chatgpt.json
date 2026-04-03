@@ -1,0 +1,759 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Electrotechnique GPT Action API",
+    "description": "Minimal OpenAPI schema expose uniquement l'endpoint /gpt-tool pour ChatGPT Actions.",
+    "version": "2.0.0"
+  },
+  "paths": {
+    "/gpt-tool": {
+      "get": {
+        "summary": "GPT Tool",
+        "description": "Version minimale et stable pour les Actions ChatGPT. Meme schema JSON dans tous les cas.",
+        "operationId": "gpt_tool_gpt_tool_get",
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 300
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Question a traiter",
+              "title": "Query"
+            },
+            "description": "Question a traiter"
+          },
+          {
+            "name": "input",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 300
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Alias principal pour les Actions ChatGPT",
+              "title": "Input"
+            },
+            "description": "Alias principal pour les Actions ChatGPT"
+          },
+          {
+            "name": "max_results",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 10,
+              "minimum": 1,
+              "description": "Nombre maximum d'articles si mode arxiv",
+              "default": 3,
+              "title": "Max Results"
+            },
+            "description": "Nombre maximum d'articles si mode arxiv"
+          },
+          {
+            "name": "auto_filter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Ajoute automatiquement un filtre electrotechnique pour les recherches scientifiques.",
+              "default": true,
+              "title": "Auto Filter"
+            },
+            "description": "Ajoute automatiquement un filtre electrotechnique pour les recherches scientifiques."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GptToolResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ArxivResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "effective_query": {
+            "type": "string",
+            "title": "Effective Query"
+          },
+          "domain_filter_applied": {
+            "type": "boolean",
+            "title": "Domain Filter Applied"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/PaperResult"
+            },
+            "type": "array",
+            "title": "Results"
+          },
+          "warning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warning"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "source",
+          "provider",
+          "query",
+          "effective_query",
+          "domain_filter_applied",
+          "count"
+        ],
+        "title": "ArxivResponse"
+      },
+      "GptToolResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "tool": {
+            "type": "string",
+            "title": "Tool"
+          },
+          "mode": {
+            "type": "string",
+            "title": "Mode"
+          },
+          "input": {
+            "type": "string",
+            "title": "Input"
+          },
+          "query_used": {
+            "type": "string",
+            "title": "Query Used"
+          },
+          "executed": {
+            "type": "boolean",
+            "title": "Executed"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "redirect": {
+            "type": "string",
+            "title": "Redirect"
+          },
+          "answer": {
+            "type": "string",
+            "title": "Answer"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/GptToolResult"
+            },
+            "type": "array",
+            "title": "Results"
+          },
+          "details": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Details"
+          },
+          "error": {
+            "type": "string",
+            "title": "Error",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "tool",
+          "mode",
+          "input",
+          "query_used",
+          "executed",
+          "source",
+          "redirect",
+          "answer"
+        ],
+        "title": "GptToolResponse"
+      },
+      "GptToolResult": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "default": ""
+          },
+          "snippet": {
+            "type": "string",
+            "title": "Snippet",
+            "default": ""
+          },
+          "link": {
+            "type": "string",
+            "title": "Link",
+            "default": ""
+          },
+          "published": {
+            "type": "string",
+            "title": "Published",
+            "default": ""
+          },
+          "authors": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Authors"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "title": "GptToolResult"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "HealthResponse"
+      },
+      "HomeResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "available_endpoints": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Available Endpoints"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "message",
+          "available_endpoints"
+        ],
+        "title": "HomeResponse"
+      },
+      "PaperResult": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary",
+            "default": ""
+          },
+          "published": {
+            "type": "string",
+            "title": "Published",
+            "default": ""
+          },
+          "link": {
+            "type": "string",
+            "title": "Link",
+            "default": ""
+          },
+          "pdf_url": {
+            "type": "string",
+            "title": "Pdf Url",
+            "default": ""
+          },
+          "primary_category": {
+            "type": "string",
+            "title": "Primary Category",
+            "default": ""
+          },
+          "authors": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Authors"
+          },
+          "doi": {
+            "type": "string",
+            "title": "Doi",
+            "default": ""
+          },
+          "journal": {
+            "type": "string",
+            "title": "Journal",
+            "default": ""
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider",
+            "default": "arxiv"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title"
+        ],
+        "title": "PaperResult"
+      },
+      "ResearchResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "sources": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Sources"
+          },
+          "errors": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Errors"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "query"
+        ],
+        "title": "ResearchResponse"
+      },
+      "SimulationPoint": {
+        "properties": {
+          "time_s": {
+            "type": "number",
+            "title": "Time S"
+          },
+          "capacitor_voltage_v": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capacitor Voltage V"
+          },
+          "resistor_current_a": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resistor Current A"
+          },
+          "stored_energy_j": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stored Energy J"
+          },
+          "inductor_current_a": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inductor Current A"
+          },
+          "inductor_voltage_v": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inductor Voltage V"
+          },
+          "signals": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signals"
+          }
+        },
+        "type": "object",
+        "required": [
+          "time_s"
+        ],
+        "title": "SimulationPoint"
+      },
+      "SimulationResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "simulation_mode": {
+            "type": "string",
+            "title": "Simulation Mode"
+          },
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "parameters": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Parameters"
+          },
+          "metrics": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metrics"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "series": {
+            "items": {
+              "$ref": "#/components/schemas/SimulationPoint"
+            },
+            "type": "array",
+            "title": "Series"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "source",
+          "kind",
+          "simulation_mode",
+          "query",
+          "summary",
+          "count"
+        ],
+        "title": "SimulationResponse"
+      },
+      "SmartQueryResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "mode": {
+            "type": "string",
+            "title": "Mode"
+          },
+          "route": {
+            "type": "string",
+            "title": "Route"
+          },
+          "input": {
+            "type": "string",
+            "title": "Input"
+          },
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "normalized_input": {
+            "type": "string",
+            "title": "Normalized Input"
+          },
+          "normalized_query": {
+            "type": "string",
+            "title": "Normalized Query"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "executed": {
+            "type": "boolean",
+            "title": "Executed"
+          },
+          "redirect": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Redirect"
+          },
+          "response": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Response"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data"
+          },
+          "answer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answer"
+          },
+          "external_result": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Result"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "mode",
+          "route",
+          "input",
+          "query",
+          "normalized_input",
+          "normalized_query",
+          "reason",
+          "executed"
+        ],
+        "title": "SmartQueryResponse"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "WolframResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "question": {
+            "type": "string",
+            "title": "Question"
+          },
+          "result": {
+            "type": "string",
+            "title": "Result"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "source",
+          "question",
+          "result"
+        ],
+        "title": "WolframResponse"
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "https://python-electrotechnique-api.onrender.com",
+      "description": "Public HTTPS endpoint for ChatGPT Actions"
+    }
+  ]
+}
