@@ -181,19 +181,19 @@ Option rapide :
 Une fois le service en ligne, teste :
 
 ```text
-https://python-electrotechnique-api.onrender.com/health
+https://electrotechnique-gpt-tool.onrender.com/health
 ```
 
 ```text
-https://python-electrotechnique-api.onrender.com/docs
+https://electrotechnique-gpt-tool.onrender.com/docs
 ```
 
 ```text
-https://python-electrotechnique-api.onrender.com/gpt-tool?input=integrate%20x^2
+https://electrotechnique-gpt-tool.onrender.com/gpt-tool?input=integrate%20x^2
 ```
 
 ```text
-https://python-electrotechnique-api.onrender.com/gpt-tool?input=simulate%20rc%20r=1000%20c=0.001%20v=5%20t=5
+https://electrotechnique-gpt-tool.onrender.com/gpt-tool?input=simulate%20rc%20r=1000%20c=0.001%20v=5%20t=5
 ```
 
 Guide detaille :
@@ -205,14 +205,14 @@ Guide detaille :
 Une fois l'API deployee en HTTPS, utilise :
 
 ```text
-https://python-electrotechnique-api.onrender.com/openapi.chatgpt.json
+https://electrotechnique-gpt-tool.onrender.com/openapi.chatgpt.json
 ```
 
 Dans le builder GPT :
 
 - Action auth : `None`
 - Import schema from URL
-- URL : `https://python-electrotechnique-api.onrender.com/openapi.chatgpt.json`
+- URL : `https://electrotechnique-gpt-tool.onrender.com/openapi.chatgpt.json`
 
 Guide detaille :
 

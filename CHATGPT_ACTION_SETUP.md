@@ -2,26 +2,26 @@
 
 Ton domaine public en HTTPS est :
 
-- `https://python-electrotechnique-api.onrender.com`
+- `https://electrotechnique-gpt-tool.onrender.com`
 
 ## 1. URL a utiliser dans ChatGPT
 
 Importe ce schema OpenAPI :
 
 ```text
-https://python-electrotechnique-api.onrender.com/openapi.chatgpt.json
+https://electrotechnique-gpt-tool.onrender.com/openapi.chatgpt.json
 ```
 
 Si tu veux aussi le manifeste legacy :
 
 ```text
-https://python-electrotechnique-api.onrender.com/.well-known/ai-plugin.json
+https://electrotechnique-gpt-tool.onrender.com/.well-known/ai-plugin.json
 ```
 
 Politique de confidentialite :
 
 ```text
-https://python-electrotechnique-api.onrender.com/legal
+https://electrotechnique-gpt-tool.onrender.com/legal
 ```
 
 ## 2. Reglages de l'Action
@@ -47,7 +47,7 @@ Import from URL
 URL du schema :
 
 ```text
-https://python-electrotechnique-api.onrender.com/openapi.chatgpt.json
+https://electrotechnique-gpt-tool.onrender.com/openapi.chatgpt.json
 ```
 
 ## 3. Nom du GPT

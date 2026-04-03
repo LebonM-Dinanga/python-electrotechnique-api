@@ -752,7 +752,7 @@
   },
   "servers": [
     {
-      "url": "https://python-electrotechnique-api.onrender.com",
+      "url": "https://electrotechnique-gpt-tool.onrender.com",
       "description": "Public HTTPS endpoint for ChatGPT Actions"
     }
   ]

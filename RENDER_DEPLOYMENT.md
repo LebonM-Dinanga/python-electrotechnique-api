@@ -48,51 +48,51 @@ Variables d'environnement :
 Ton URL publique Render est :
 
 ```text
-https://python-electrotechnique-api.onrender.com
+https://electrotechnique-gpt-tool.onrender.com
 ```
 
 Tests API :
 
 ```text
-https://python-electrotechnique-api.onrender.com/health
+https://electrotechnique-gpt-tool.onrender.com/health
 ```
 
 ```text
-https://python-electrotechnique-api.onrender.com/docs
+https://electrotechnique-gpt-tool.onrender.com/docs
 ```
 
 ```text
-https://python-electrotechnique-api.onrender.com/gpt-tool?input=integrate%20x^2
+https://electrotechnique-gpt-tool.onrender.com/gpt-tool?input=integrate%20x^2
 ```
 
 ```text
-https://python-electrotechnique-api.onrender.com/gpt-tool?input=research%20transformer%20losses
+https://electrotechnique-gpt-tool.onrender.com/gpt-tool?input=research%20transformer%20losses
 ```
 
 ```text
-https://python-electrotechnique-api.onrender.com/gpt-tool?input=simulate%20rc%20r=1000%20c=0.001%20v=5%20t=5
+https://electrotechnique-gpt-tool.onrender.com/gpt-tool?input=simulate%20rc%20r=1000%20c=0.001%20v=5%20t=5
 ```
 
 ```text
-https://python-electrotechnique-api.onrender.com/gpt-tool?input=simulate%20transformer%20kva=100%20v1=20000%20v2=400%20load=0.8
+https://electrotechnique-gpt-tool.onrender.com/gpt-tool?input=simulate%20transformer%20kva=100%20v1=20000%20v2=400%20load=0.8
 ```
 
 ```text
-https://python-electrotechnique-api.onrender.com/gpt-tool?input=simulate%20three%20phase%20vll=400%20i=30%20pf=0.92%20connection=delta
+https://electrotechnique-gpt-tool.onrender.com/gpt-tool?input=simulate%20three%20phase%20vll=400%20i=30%20pf=0.92%20connection=delta
 ```
 
 Tests ChatGPT Action :
 
 ```text
-https://python-electrotechnique-api.onrender.com/openapi.chatgpt.json
+https://electrotechnique-gpt-tool.onrender.com/openapi.chatgpt.json
 ```
 
 ```text
-https://python-electrotechnique-api.onrender.com/.well-known/ai-plugin.json
+https://electrotechnique-gpt-tool.onrender.com/.well-known/ai-plugin.json
 ```
 
 ```text
-https://python-electrotechnique-api.onrender.com/legal
+https://electrotechnique-gpt-tool.onrender.com/legal
 ```
 
 ## Ce qu'il faut coller dans ChatGPT Actions
@@ -100,7 +100,7 @@ https://python-electrotechnique-api.onrender.com/legal
 Schema OpenAPI :
 
 ```text
-https://python-electrotechnique-api.onrender.com/openapi.chatgpt.json
+https://electrotechnique-gpt-tool.onrender.com/openapi.chatgpt.json
 ```
 
 Authentification :
