@@ -213,6 +213,14 @@ WebSocket ingest: wss://electrotechnique-gpt-tool.onrender.com/ws/telemetry-inge
 WebSocket watch: wss://electrotechnique-gpt-tool.onrender.com/ws/telemetry-watch/atelier-ligne-1
 ```
 
+Scripts de test MQTT prets dans :
+
+```text
+examples/mqtt_publish.py
+examples/mqtt_publish.mjs
+examples/README.md
+```
+
 ### Simulation electrotechnique
 
 ```text
