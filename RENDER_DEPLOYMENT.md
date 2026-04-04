@@ -35,6 +35,13 @@ Variables d'environnement :
 - `WOLFRAM_APP_ID` : obligatoire, a definir comme secret Render
 - `CONTACT_EMAIL` : `lebonmukendi17@gmail.com`
 - `ARXIV_DOMAIN_FILTER` : `electrical engineering`
+- `PUBLIC_BASE_URL` : `https://electrotechnique-gpt-tool.onrender.com`
+- `MQTT_BROKER_HOST` : ton broker MQTT
+- `MQTT_BROKER_PORT` : en general `1883`
+- `MQTT_TOPIC_PREFIX` : par exemple `electrogpt/telemetry`
+- `MQTT_USERNAME` : optionnel
+- `MQTT_PASSWORD` : optionnel
+- `MAX_TELEMETRY_POINTS` : optionnel, par exemple `600`
 - `PLUGIN_LOGO_URL` : optionnel
 - `PLUGIN_LEGAL_URL` : optionnel
 
@@ -121,3 +128,169 @@ Si ChatGPT ne voit pas ton action :
 ## Note utile
 
 L'URL `legal_info_url` du manifeste pointe automatiquement vers `/legal` si `PLUGIN_LEGAL_URL` n'est pas defini.
+
+## Procedure de test bout en bout MQTT -> Render -> Dashboard Live
+
+Objectif :
+
+- publier un message sur un broker MQTT
+- laisser Render ingerer automatiquement le message
+- visualiser la donnee dans le dashboard live
+
+### 1. Configurer MQTT dans Render
+
+Dans `Environment`, renseigne au minimum :
+
+```text
+MQTT_BROKER_HOST=broker.hivemq.com
+MQTT_BROKER_PORT=1883
+MQTT_TOPIC_PREFIX=electrogpt/telemetry
+PUBLIC_BASE_URL=https://electrotechnique-gpt-tool.onrender.com
+```
+
+Si ton broker exige un login :
+
+```text
+MQTT_USERNAME=<user>
+MQTT_PASSWORD=<password>
+```
+
+Puis redeploie le service.
+
+### 2. Verifier que le connecteur MQTT est actif
+
+Ouvre :
+
+```text
+https://electrotechnique-gpt-tool.onrender.com/connectors-status
+```
+
+Tu dois voir :
+
+- `configured: true`
+- `library_available: true`
+- `connected: true` ou au moins pas d'erreur bloquante si le broker repond
+
+### 3. Ouvrir le dashboard live
+
+Ouvre :
+
+```text
+https://electrotechnique-gpt-tool.onrender.com/live-dashboard?channel=atelier-ligne-1
+```
+
+Le dashboard est pret a ecouter le canal `atelier-ligne-1`.
+
+### 4. Publier un message MQTT de test
+
+Topic a utiliser :
+
+```text
+electrogpt/telemetry/atelier-ligne-1
+```
+
+Payload JSON recommande :
+
+```json
+{
+  "channel": "atelier-ligne-1",
+  "values": {
+    "temperature_c": 46.2,
+    "current_a": 18.4,
+    "voltage_v": 398.5,
+    "power_factor": 0.91
+  },
+  "metadata": {
+    "machine": "transformer-1",
+    "publisher": "mqtt-test"
+  }
+}
+```
+
+### 5. Methode A. Test rapide avec Python
+
+Depuis le repo :
+
+```bash
+pip install paho-mqtt
+python examples/mqtt_publish.py --host broker.hivemq.com --channel atelier-ligne-1 --count 20
+```
+
+### 6. Methode B. Test rapide avec Node.js
+
+Depuis le repo :
+
+```bash
+npm install mqtt
+node examples/mqtt_publish.mjs
+```
+
+### 7. Methode C. Test avec Mosquitto CLI
+
+Si `mosquitto_pub` est installe :
+
+```bash
+mosquitto_pub -h broker.hivemq.com -p 1883 -t electrogpt/telemetry/atelier-ligne-1 -m "{\"channel\":\"atelier-ligne-1\",\"values\":{\"temperature_c\":46.2,\"current_a\":18.4,\"voltage_v\":398.5}}"
+```
+
+### 8. Verifier que Render recoit bien les messages
+
+Reviens sur :
+
+```text
+https://electrotechnique-gpt-tool.onrender.com/connectors-status
+```
+
+Tu dois voir :
+
+- `messages_received` augmenter
+- `telemetry_channels` contenir `atelier-ligne-1`
+
+### 9. Verifier l'arrivee dans le dashboard
+
+Dans :
+
+```text
+https://electrotechnique-gpt-tool.onrender.com/live-dashboard?channel=atelier-ligne-1
+```
+
+Tu dois voir :
+
+- les courbes se construire
+- le statut passer en actif
+- les signaux `temperature_c`, `current_a`, `voltage_v` apparaitre
+
+### 10. Verifier le flux brut si besoin
+
+Tu peux aussi ecouter le flux SSE brut :
+
+```text
+https://electrotechnique-gpt-tool.onrender.com/telemetry-stream?channel=atelier-ligne-1
+```
+
+### 11. Si rien n'apparait
+
+Verifier dans cet ordre :
+
+- `MQTT_BROKER_HOST` et `MQTT_BROKER_PORT`
+- le topic exact `electrogpt/telemetry/atelier-ligne-1`
+- la valeur de `MQTT_TOPIC_PREFIX`
+- que le broker accepte bien la connexion depuis Render
+- que le service n'est pas en veille si tu es sur un plan `Free`
+- que `connectors-status` montre `connected: true`
+
+### 12. Variante sans MQTT
+
+Si tu veux juste valider le dashboard sans broker, injecte une trame HTTP :
+
+```bash
+curl -X POST "https://electrotechnique-gpt-tool.onrender.com/telemetry-ingest" ^
+  -H "Content-Type: application/json" ^
+  -d "{\"channel\":\"atelier-ligne-1\",\"source\":\"http-test\",\"values\":{\"temperature_c\":46.2,\"current_a\":18.4}}"
+```
+
+Puis ouvre :
+
+```text
+https://electrotechnique-gpt-tool.onrender.com/live-dashboard?channel=atelier-ligne-1
+```
