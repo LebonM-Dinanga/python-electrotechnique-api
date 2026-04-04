@@ -8,6 +8,7 @@ Le projet combine :
 - recherche documentaire technique via arXiv avec fallback Crossref
 - simulations RC, RL et RLC pour des reponses transitoires
 - simulation de transformateur, systeme triphase et moteur DC
+- assistant academique pour TFE, PFE, memoire et these
 - routage intelligent via `/smart-query`
 - endpoint stable pour ChatGPT Actions via `/gpt-tool`
 
@@ -15,6 +16,8 @@ Le projet combine :
 
 - `GET /wolfram` : calculs, formules, integrales, resultats scientifiques
 - `GET /arxiv` : recherche d'articles avec filtre electrotechnique automatique
+- `GET /academic-assistant` : plan academique, problematique, objectifs, methode, structure et sources de depart
+- `GET /thesis-workflow` : workflow complet pour TFE, memoire ou these avec plan detaille, bibliographie et calendrier
 - `GET /simulate` : simulations RC, RL, RLC, transformateur, triphase et moteur DC
 - `GET /research` : combine les recherches utiles pour une question technique
 - `GET /smart-query` : routeur intelligent riche pour GPT
@@ -129,6 +132,28 @@ Exemple de sortie :
 
 ```text
 GET /gpt-tool?input=research transformer losses
+```
+
+### TFE / These
+
+```text
+GET /academic-assistant?input=Plan de these sur l integration des energies renouvelables dans les microreseaux
+```
+
+```text
+GET /thesis-workflow?input=Workflow complet de these sur la protection des relais dans les microreseaux
+```
+
+```text
+GET /gpt-tool?input=Donner 3 sujets recents et pertinents de TFE en electrotechnique
+```
+
+```text
+GET /gpt-tool?input=Guide de recherche pour un memoire sur la protection des relais
+```
+
+```text
+GET /gpt-tool?input=Plan detaille de these sur l integration des energies renouvelables dans les microreseaux
 ```
 
 ### Simulation electrotechnique

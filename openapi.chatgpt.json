@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Electrotechnique GPT Action API",
-    "description": "Minimal OpenAPI schema expose uniquement l'endpoint /gpt-tool pour ChatGPT Actions.",
-    "version": "2.0.0"
+    "description": "Minimal OpenAPI schema expose uniquement l'endpoint /gpt-tool pour ChatGPT Actions, avec calcul, simulation, recherche technique et workflow academique.",
+    "version": "2.2.0"
   },
   "paths": {
     "/gpt-tool": {
@@ -106,6 +106,141 @@
   },
   "components": {
     "schemas": {
+      "AcademicAssistantResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "normalized_query": {
+            "type": "string",
+            "title": "Normalized Query"
+          },
+          "academic_level": {
+            "type": "string",
+            "title": "Academic Level"
+          },
+          "deliverable_type": {
+            "type": "string",
+            "title": "Deliverable Type"
+          },
+          "domain_focus": {
+            "type": "string",
+            "title": "Domain Focus"
+          },
+          "title_suggestions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Title Suggestions"
+          },
+          "problem_statement": {
+            "type": "string",
+            "title": "Problem Statement"
+          },
+          "objectives": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Objectives"
+          },
+          "research_questions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Research Questions"
+          },
+          "keywords": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Keywords"
+          },
+          "search_queries": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Search Queries"
+          },
+          "recommended_sources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Recommended Sources"
+          },
+          "recommended_tools": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Recommended Tools"
+          },
+          "methodology": {
+            "type": "string",
+            "title": "Methodology"
+          },
+          "outline": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Outline"
+          },
+          "writing_guidelines": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Writing Guidelines"
+          },
+          "milestones": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Milestones"
+          },
+          "originality_note": {
+            "type": "string",
+            "title": "Originality Note"
+          },
+          "next_steps": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Next Steps"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "source",
+          "query",
+          "normalized_query",
+          "academic_level",
+          "deliverable_type",
+          "domain_focus",
+          "problem_statement",
+          "methodology",
+          "originality_note"
+        ],
+        "title": "AcademicAssistantResponse"
+      },
       "ArxivResponse": {
         "properties": {
           "status": {
@@ -326,6 +461,102 @@
           "available_endpoints"
         ],
         "title": "HomeResponse"
+      },
+      "LiteratureStrategy": {
+        "properties": {
+          "objective": {
+            "type": "string",
+            "title": "Objective"
+          },
+          "databases": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Databases"
+          },
+          "search_queries": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Search Queries"
+          },
+          "screening_criteria": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Screening Criteria"
+          },
+          "evidence_matrix": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Evidence Matrix"
+          },
+          "watch_routine": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Watch Routine"
+          }
+        },
+        "type": "object",
+        "required": [
+          "objective"
+        ],
+        "title": "LiteratureStrategy"
+      },
+      "MethodologyBlueprint": {
+        "properties": {
+          "approach": {
+            "type": "string",
+            "title": "Approach"
+          },
+          "work_packages": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Work Packages"
+          },
+          "tools": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tools"
+          },
+          "inputs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Inputs"
+          },
+          "validation_metrics": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Validation Metrics"
+          },
+          "risk_controls": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Risk Controls"
+          }
+        },
+        "type": "object",
+        "required": [
+          "approach"
+        ],
+        "title": "MethodologyBlueprint"
       },
       "PaperResult": {
         "properties": {
@@ -680,6 +911,170 @@
         ],
         "title": "SmartQueryResponse"
       },
+      "ThesisChapter": {
+        "properties": {
+          "chapter_number": {
+            "type": "integer",
+            "title": "Chapter Number"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "objective": {
+            "type": "string",
+            "title": "Objective"
+          },
+          "key_sections": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Key Sections"
+          },
+          "expected_outputs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Expected Outputs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "chapter_number",
+          "title",
+          "objective"
+        ],
+        "title": "ThesisChapter"
+      },
+      "ThesisWorkflowResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "normalized_query": {
+            "type": "string",
+            "title": "Normalized Query"
+          },
+          "academic_level": {
+            "type": "string",
+            "title": "Academic Level"
+          },
+          "deliverable_type": {
+            "type": "string",
+            "title": "Deliverable Type"
+          },
+          "domain_focus": {
+            "type": "string",
+            "title": "Domain Focus"
+          },
+          "proposed_topic": {
+            "type": "string",
+            "title": "Proposed Topic"
+          },
+          "title_options": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Title Options"
+          },
+          "problem_statement": {
+            "type": "string",
+            "title": "Problem Statement"
+          },
+          "novelty_angle": {
+            "type": "string",
+            "title": "Novelty Angle"
+          },
+          "hypotheses": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Hypotheses"
+          },
+          "objectives": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Objectives"
+          },
+          "research_questions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Research Questions"
+          },
+          "chapter_plan": {
+            "items": {
+              "$ref": "#/components/schemas/ThesisChapter"
+            },
+            "type": "array",
+            "title": "Chapter Plan"
+          },
+          "literature_strategy": {
+            "$ref": "#/components/schemas/LiteratureStrategy"
+          },
+          "methodology_blueprint": {
+            "$ref": "#/components/schemas/MethodologyBlueprint"
+          },
+          "writing_calendar": {
+            "items": {
+              "$ref": "#/components/schemas/WritingMilestone"
+            },
+            "type": "array",
+            "title": "Writing Calendar"
+          },
+          "quality_checklist": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Quality Checklist"
+          },
+          "originality_note": {
+            "type": "string",
+            "title": "Originality Note"
+          },
+          "next_actions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Next Actions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "source",
+          "query",
+          "normalized_query",
+          "academic_level",
+          "deliverable_type",
+          "domain_focus",
+          "proposed_topic",
+          "problem_statement",
+          "novelty_angle",
+          "literature_strategy",
+          "methodology_blueprint",
+          "originality_note"
+        ],
+        "title": "ThesisWorkflowResponse"
+      },
       "ValidationError": {
         "properties": {
           "loc": {
@@ -747,6 +1142,36 @@
           "result"
         ],
         "title": "WolframResponse"
+      },
+      "WritingMilestone": {
+        "properties": {
+          "phase": {
+            "type": "string",
+            "title": "Phase"
+          },
+          "week_range": {
+            "type": "string",
+            "title": "Week Range"
+          },
+          "focus": {
+            "type": "string",
+            "title": "Focus"
+          },
+          "deliverables": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Deliverables"
+          }
+        },
+        "type": "object",
+        "required": [
+          "phase",
+          "week_range",
+          "focus"
+        ],
+        "title": "WritingMilestone"
       }
     }
   },

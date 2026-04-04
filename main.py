@@ -71,6 +71,66 @@ DIRECT_QUERY_HINTS = {
     "que fais-tu",
     "que peux-tu faire",
 }
+ACADEMIC_HINTS = {
+    "tfe",
+    "pfe",
+    "memoire",
+    "mémoire",
+    "these",
+    "thèse",
+    "thesis",
+    "dissertation",
+    "sujet",
+    "sujets",
+    "theme",
+    "thème",
+    "problem statement",
+    "problematique",
+    "problématique",
+    "objectifs",
+    "objectives",
+    "methodologie",
+    "méthodologie",
+    "methodology",
+    "chapitre",
+    "chapter",
+    "plan de these",
+    "plan de thèse",
+    "guide de recherche",
+    "research guide",
+    "literature review",
+    "etat de l'art",
+    "état de l'art",
+    "bibliographie",
+    "bibliography",
+    "proposal",
+}
+THESIS_WORKFLOW_HINTS = {
+    "workflow",
+    "roadmap",
+    "plan detaille",
+    "plan dÃ©taille",
+    "plan detaille chapitre",
+    "outline",
+    "chapter",
+    "chapitre",
+    "chapitres",
+    "calendar",
+    "calendrier",
+    "timeline",
+    "retroplanning",
+    "retroplanning",
+    "planning de redaction",
+    "writing plan",
+    "writing calendar",
+    "research proposal",
+    "proposal defense",
+    "soutenance",
+    "hypothese",
+    "hypotheses",
+    "contribution originale",
+    "novelty",
+}
 CALCULATION_HINTS = {
     "solve",
     "calculate",
@@ -105,16 +165,6 @@ SIMULATION_HINTS = {
     "capacitive",
     "inductor",
     "inductive",
-    "rc",
-    "rl",
-    "rlc",
-    "transformer",
-    "transfo",
-    "three phase",
-    "three-phase",
-    "triphase",
-    "motor",
-    "moteur",
 }
 ELECTRICAL_HINTS = {
     "electrical engineering",
@@ -256,6 +306,87 @@ class ResearchResponse(BaseModel):
     errors: dict[str, str] = Field(default_factory=dict)
 
 
+class AcademicAssistantResponse(BaseModel):
+    status: str
+    source: str
+    query: str
+    normalized_query: str
+    academic_level: str
+    deliverable_type: str
+    domain_focus: str
+    title_suggestions: list[str] = Field(default_factory=list)
+    problem_statement: str
+    objectives: list[str] = Field(default_factory=list)
+    research_questions: list[str] = Field(default_factory=list)
+    keywords: list[str] = Field(default_factory=list)
+    search_queries: list[str] = Field(default_factory=list)
+    recommended_sources: list[str] = Field(default_factory=list)
+    recommended_tools: list[str] = Field(default_factory=list)
+    methodology: str
+    outline: list[str] = Field(default_factory=list)
+    writing_guidelines: list[str] = Field(default_factory=list)
+    milestones: list[str] = Field(default_factory=list)
+    originality_note: str
+    next_steps: list[str] = Field(default_factory=list)
+
+
+class ThesisChapter(BaseModel):
+    chapter_number: int
+    title: str
+    objective: str
+    key_sections: list[str] = Field(default_factory=list)
+    expected_outputs: list[str] = Field(default_factory=list)
+
+
+class LiteratureStrategy(BaseModel):
+    objective: str
+    databases: list[str] = Field(default_factory=list)
+    search_queries: list[str] = Field(default_factory=list)
+    screening_criteria: list[str] = Field(default_factory=list)
+    evidence_matrix: list[str] = Field(default_factory=list)
+    watch_routine: list[str] = Field(default_factory=list)
+
+
+class MethodologyBlueprint(BaseModel):
+    approach: str
+    work_packages: list[str] = Field(default_factory=list)
+    tools: list[str] = Field(default_factory=list)
+    inputs: list[str] = Field(default_factory=list)
+    validation_metrics: list[str] = Field(default_factory=list)
+    risk_controls: list[str] = Field(default_factory=list)
+
+
+class WritingMilestone(BaseModel):
+    phase: str
+    week_range: str
+    focus: str
+    deliverables: list[str] = Field(default_factory=list)
+
+
+class ThesisWorkflowResponse(BaseModel):
+    status: str
+    source: str
+    query: str
+    normalized_query: str
+    academic_level: str
+    deliverable_type: str
+    domain_focus: str
+    proposed_topic: str
+    title_options: list[str] = Field(default_factory=list)
+    problem_statement: str
+    novelty_angle: str
+    hypotheses: list[str] = Field(default_factory=list)
+    objectives: list[str] = Field(default_factory=list)
+    research_questions: list[str] = Field(default_factory=list)
+    chapter_plan: list[ThesisChapter] = Field(default_factory=list)
+    literature_strategy: LiteratureStrategy
+    methodology_blueprint: MethodologyBlueprint
+    writing_calendar: list[WritingMilestone] = Field(default_factory=list)
+    quality_checklist: list[str] = Field(default_factory=list)
+    originality_note: str
+    next_actions: list[str] = Field(default_factory=list)
+
+
 class SmartQueryResponse(BaseModel):
     status: str
     mode: str
@@ -323,8 +454,8 @@ class SimulationResponse(BaseModel):
 
 app = FastAPI(
     title="Python Electrotechnique API",
-    description="API FastAPI pour enrichir un assistant GPT avec WolframAlpha, arXiv et des simulations electrotechniques avancees.",
-    version="2.0.0",
+    description="API FastAPI pour enrichir un assistant GPT avec WolframAlpha, arXiv, des simulations electrotechniques avancees, un assistant academique et un workflow de these/TFE.",
+    version="2.2.0",
 )
 
 app.add_middleware(
@@ -403,6 +534,585 @@ def _extract_named_choice(query: str, aliases: list[str], allowed_values: list[s
 
 def _contains_any(text: str, keywords: set[str]) -> bool:
     return any(keyword in text for keyword in keywords)
+
+
+def _looks_like_academic_request(query: str) -> bool:
+    lowered_query = query.lower()
+    return _contains_any(lowered_query, ACADEMIC_HINTS)
+
+
+def _looks_like_thesis_workflow_request(query: str) -> bool:
+    lowered_query = query.lower()
+    if _contains_any(lowered_query, THESIS_WORKFLOW_HINTS) and _looks_like_academic_request(query):
+        return True
+    return bool(
+        re.search(r"plan\s+(detaille|de these|de thÃ¨se|de memoire|de mÃ©moire)", lowered_query)
+        or re.search(r"chapitre|calendar|calendrier|timeline|workflow|roadmap", lowered_query)
+    ) and _looks_like_academic_request(query)
+
+
+def _infer_academic_level(query: str) -> str:
+    lowered_query = query.lower()
+    if "these" in lowered_query or "thèse" in lowered_query or "thesis" in lowered_query:
+        return "these"
+    if "memoire" in lowered_query or "mémoire" in lowered_query:
+        return "memoire"
+    if "pfe" in lowered_query:
+        return "pfe"
+    if "tfe" in lowered_query:
+        return "tfe"
+    return "projet-academique"
+
+
+def _infer_deliverable_type(query: str) -> str:
+    lowered_query = query.lower()
+    if "sujet" in lowered_query or "theme" in lowered_query or "thème" in lowered_query:
+        return "topic-ideation"
+    if "guide de recherche" in lowered_query or "research guide" in lowered_query or "bibliographie" in lowered_query or "literature review" in lowered_query:
+        return "research-guide"
+    if "methodologie" in lowered_query or "méthodologie" in lowered_query or "methodology" in lowered_query:
+        return "methodology-plan"
+    if "plan" in lowered_query or "chapitre" in lowered_query or "chapter" in lowered_query or "outline" in lowered_query:
+        return "writing-outline"
+    return "full-thesis-support"
+
+
+def _extract_academic_focus(query: str) -> str:
+    lowered_query = query.lower()
+    if any(term in lowered_query for term in {"electrotechnique", "lectrotechnique", "electrical engineering"}) and not any(
+        term in lowered_query for term in {"renouvelable", "renewable", "solaire", "transform", "relais", "relay", "protection", "motor", "moteur", "microreseau", "microgrid"}
+    ):
+        return "ingenierie electrotechnique"
+    cleaned = re.sub(r"[^a-z0-9àâçéèêëîïôûùüÿñæœ\s-]", " ", lowered_query)
+    for fragment in [
+        "donner",
+        "recent",
+        "recents",
+        "récents",
+        "pertinent",
+        "pertinents",
+        "proposer",
+        "propose",
+        "liste",
+        "3",
+        "trois",
+        "sujet",
+        "sujets",
+        "theme",
+        "thème",
+        "guide de recherche",
+        "plan de these",
+        "plan de thèse",
+        "tfe",
+        "pfe",
+        "memoire",
+        "mémoire",
+        "these",
+        "thèse",
+        "thesis",
+        "sur",
+        "pour",
+        "de",
+        "en",
+        "projet",
+        "fin",
+        "cycle",
+    ]:
+        cleaned = cleaned.replace(fragment, " ")
+    cleaned = _normalize_text(cleaned)
+    if "electrotech" in lowered_query and not cleaned:
+        return "ingenierie electrotechnique"
+    if any(term in lowered_query for term in {"renouvelable", "renewable", "solaire", "photovolta", "microreseau", "microgrid"}):
+        return "integration des energies renouvelables et microreseaux"
+    if "transform" in lowered_query:
+        return "transformateurs de puissance et de distribution"
+    if "relais" in lowered_query or "relay" in lowered_query or "protection" in lowered_query:
+        return "protection des relais et selectivite"
+    if "motor" in lowered_query or "moteur" in lowered_query:
+        return "machines electriques et commande de moteurs"
+    if "quality" in lowered_query or "qualite" in lowered_query or "harmon" in lowered_query:
+        return "qualite d energie et compensation"
+    return cleaned or "ingenierie electrotechnique"
+
+
+def _generate_academic_titles(domain_focus: str) -> list[str]:
+    lowered_focus = domain_focus.lower()
+    if "renouvelable" in lowered_focus or "microreseau" in lowered_focus or "microgrid" in lowered_focus:
+        return [
+            "Integration optimale des energies renouvelables dans un microreseau intelligent a faible tension",
+            "Commande et gestion energetique d'un systeme hybride photovoltaïque-batterie pour un site isole",
+            "Etude techno-economique de l'insertion des sources renouvelables dans un reseau de distribution",
+        ]
+    if "transform" in lowered_focus:
+        return [
+            "Analyse et reduction des pertes dans les transformateurs de distribution soumis a des charges non lineaires",
+            "Surveillance thermique et maintenance predictive des transformateurs de puissance",
+            "Impact de la penetration des energies renouvelables sur le dimensionnement des transformateurs MT/BT",
+        ]
+    if "relais" in lowered_focus or "protection" in lowered_focus:
+        return [
+            "Coordination optimale des relais de protection dans un reseau de distribution moderne",
+            "Analyse de la selectivite des protections dans un microreseau comportant des convertisseurs de puissance",
+            "Contribution a l'amelioration de la rapidite et de la fiabilite des protections electriques industrielles",
+        ]
+    if "moteur" in lowered_focus or "machines" in lowered_focus:
+        return [
+            "Commande robuste d'un moteur electrique pour l'amelioration du rendement energetique",
+            "Diagnostic de defauts des machines tournantes par analyse des signaux electriques",
+            "Comparaison des strategies de commande des moteurs electriques dans les applications industrielles",
+        ]
+    return [
+        f"Conception et optimisation d'une etude appliquee sur {domain_focus}",
+        f"Analyse technico-economique et modelisation de {domain_focus}",
+        f"Supervision, commande et maintenance intelligente pour {domain_focus}",
+    ]
+
+
+def _build_academic_assistant_payload(query: str) -> dict[str, Any]:
+    normalized_query = _normalize_text(query)
+    academic_level = _infer_academic_level(normalized_query)
+    deliverable_type = _infer_deliverable_type(normalized_query)
+    domain_focus = _extract_academic_focus(normalized_query)
+    title_suggestions = _generate_academic_titles(domain_focus)
+
+    problem_statement = (
+        f"Le sujet '{domain_focus}' presente un enjeu scientifique et industriel en ingenierie electrotechnique. "
+        "Le travail doit clarifier le probleme technique, identifier les limites des solutions existantes, "
+        "et proposer une approche originale, justifiee et verifiable."
+    )
+    objectives = [
+        f"Caracteriser l'etat actuel des connaissances et des pratiques sur {domain_focus}.",
+        "Identifier les verrous techniques, economiques ou operationnels qui motivent le travail.",
+        "Proposer une methode d'etude, de modelisation, de simulation ou d'experimentation adaptee.",
+        "Produire des resultats exploitables avec analyse critique, limites et perspectives.",
+    ]
+    research_questions = [
+        f"Quels sont les principaux problemes techniques observes dans le domaine {domain_focus} ?",
+        "Quelles methodes ou architectures existantes sont les plus pertinentes et quelles sont leurs limites ?",
+        "Quelle contribution originale et mesurable peut etre apportee dans le cadre d'un TFE, memoire ou these ?",
+    ]
+    keywords = [
+        domain_focus,
+        "electrical engineering",
+        "power systems",
+        "power electronics",
+        "control",
+        "optimization",
+        "simulation",
+        "design",
+    ]
+    search_queries = [
+        f"{domain_focus} electrical engineering",
+        f"{domain_focus} power systems",
+        f"{domain_focus} methodology OR model OR simulation",
+        f"{domain_focus} recent review OR survey",
+    ]
+    recommended_sources = [
+        "arXiv pour les preprints techniques et approches recentes",
+        "Crossref pour retrouver des articles, DOI et journaux pertinents",
+        "Google Scholar pour elargir la bibliographie et suivre les citations",
+        "IEEE Xplore, ScienceDirect et SpringerLink si l'utilisateur a acces institutionnel",
+    ]
+    recommended_tools = [
+        "Zotero ou Mendeley pour la bibliographie",
+        "Overleaf ou Word pour la redaction structuree",
+        "Python, MATLAB/Simulink ou ETAP selon la nature du sujet",
+        "Ton action /gpt-tool pour rechercher des articles, lancer des calculs et preparer le cadrage du sujet",
+    ]
+    methodology = (
+        "Commence par une revue de litterature ciblee, formule une problematique precise, definis les hypotheses et indicateurs "
+        "de performance, puis choisis une methode de validation: simulation, experimentation, etude comparative ou prototype. "
+        "La methode doit permettre de comparer l'etat de l'art a ta proposition et de discuter les limites de maniere honnete."
+    )
+    outline = [
+        "Chapitre 1: Introduction generale, contexte, problematique, objectifs, hypotheses et demarche.",
+        "Chapitre 2: Etat de l'art et bases theoriques reliees au sujet.",
+        "Chapitre 3: Materiels, modeles, methodologie et environnement d'etude.",
+        "Chapitre 4: Resultats, analyses, comparaison avec la litterature et discussion critique.",
+        "Chapitre 5: Conclusion generale, limites, recommandations et perspectives.",
+    ]
+    writing_guidelines = [
+        "Rediger chaque chapitre avec une idee directrice claire et des transitions explicites.",
+        "Justifier les choix techniques avec des sources et non avec des affirmations vagues.",
+        "Distinguer clairement ce qui vient de la litterature, de la simulation et de ta contribution.",
+        "Conserver un style original, analytique et coherent avec les preuves obtenues.",
+    ]
+    milestones = [
+        "Semaine 1-2: cadrage du sujet, problematique, objectifs, mots-cles et premier corpus bibliographique.",
+        "Semaine 3-4: lecture critique des sources, synthese de l'etat de l'art et schema du memoire.",
+        "Semaine 5-7: modelisation, simulations, experiences ou collecte de donnees.",
+        "Semaine 8-10: interpretation des resultats, redaction technique et comparaison avec la litterature.",
+        "Semaine 11-12: finalisation, relecture, bibliographie, annexes et preparation de la defense.",
+    ]
+    originality_note = (
+        "Le memoire ou la these doit rester original. Cet assistant sert a structurer le travail, proposer des pistes "
+        "et accelerer la recherche, mais le contenu final doit etre personnalise, verifie et redige par l'etudiant ou le chercheur."
+    )
+    next_steps = [
+        "Choisir un angle precis et limiter le sujet a une question realiste.",
+        "Demander ensuite une recherche bibliographique ciblee avec /gpt-tool ou /arxiv.",
+        "Demander un plan detaille chapitre par chapitre si le sujet est valide.",
+        "Demander une methode, un protocole experimental ou une grille d'analyse adaptee au sujet.",
+    ]
+
+    return AcademicAssistantResponse(
+        status="ok",
+        source="academic-assistant",
+        query=query,
+        normalized_query=normalized_query,
+        academic_level=academic_level,
+        deliverable_type=deliverable_type,
+        domain_focus=domain_focus,
+        title_suggestions=title_suggestions,
+        problem_statement=problem_statement,
+        objectives=objectives,
+        research_questions=research_questions,
+        keywords=keywords,
+        search_queries=search_queries,
+        recommended_sources=recommended_sources,
+        recommended_tools=recommended_tools,
+        methodology=methodology,
+        outline=outline,
+        writing_guidelines=writing_guidelines,
+        milestones=milestones,
+        originality_note=originality_note,
+        next_steps=next_steps,
+    ).model_dump()
+
+
+def _build_thesis_chapter_plan(domain_focus: str, academic_level: str) -> list[dict[str, Any]]:
+    chapters = [
+        ThesisChapter(
+            chapter_number=1,
+            title="Introduction generale et cadrage du sujet",
+            objective="Poser le contexte, la problematique, les objectifs, les hypotheses et la valeur attendue du travail.",
+            key_sections=[
+                "Contexte industriel et scientifique",
+                "Problematique et justification du sujet",
+                "Objectifs general et specifiques",
+                "Hypotheses de travail",
+                "Organisation du document",
+            ],
+            expected_outputs=[
+                "Question centrale validee",
+                "Perimetre du sujet clairement delimite",
+                "Architecture generale du manuscrit",
+            ],
+        ).model_dump(),
+        ThesisChapter(
+            chapter_number=2,
+            title="Etat de l'art et revue critique de la litterature",
+            objective=f"Comparer les approches existantes sur {domain_focus}, identifier les indicateurs utilises et faire ressortir un gap de recherche defensible.",
+            key_sections=[
+                "Definitions et concepts cles",
+                "Synthese des approches existantes",
+                "Comparaison des methodes, outils et resultats",
+                "Limites de l'etat de l'art",
+                "Gap scientifique ou technique retenu",
+            ],
+            expected_outputs=[
+                "Corpus bibliographique structure",
+                "Tableau comparatif des references majeures",
+                "Gap de recherche formule proprement",
+            ],
+        ).model_dump(),
+        ThesisChapter(
+            chapter_number=3,
+            title="Modelisation, architecture et methodologie",
+            objective="Decrire le cadre methodologique, les hypotheses de modelisation, les donnees et les outils de validation.",
+            key_sections=[
+                "Architecture du systeme ou scenario d'etude",
+                "Hypotheses, variables et contraintes",
+                "Modeles mathematiques ou physiques",
+                "Protocoles de simulation, test ou mesure",
+                "Criteres d'evaluation",
+            ],
+            expected_outputs=[
+                "Modele ou protocole reproductible",
+                "Jeu de parametres et hypotheses explicites",
+                "Plan de validation",
+            ],
+        ).model_dump(),
+        ThesisChapter(
+            chapter_number=4,
+            title="Implementation, simulations ou experimentation",
+            objective="Executer la methode retenue, construire les cas d'etude et collecter les resultats exploitables.",
+            key_sections=[
+                "Description de l'environnement logiciel ou experimental",
+                "Cas de charge ou scenarios de test",
+                "Execution des simulations ou mesures",
+                "Collecte et mise en forme des donnees",
+            ],
+            expected_outputs=[
+                "Jeu de resultats coherents",
+                "Figures, tableaux et courbes exploitables",
+                "Trace des essais et des parametres",
+            ],
+        ).model_dump(),
+        ThesisChapter(
+            chapter_number=5,
+            title="Analyse, discussion critique et contribution",
+            objective="Interpreter les resultats, mesurer la valeur de la contribution et discuter les limites du travail.",
+            key_sections=[
+                "Analyse des performances",
+                "Comparaison avec la litterature",
+                "Discussion des compromis techniques et economiques",
+                "Limites de l'etude",
+                "Contribution originale retenue",
+            ],
+            expected_outputs=[
+                "Discussion argumentee",
+                "Contribution originale explicite",
+                "Limites et perspectives honnetes",
+            ],
+        ).model_dump(),
+    ]
+
+    if academic_level == "these":
+        chapters.append(
+            ThesisChapter(
+                chapter_number=6,
+                title="Conclusion generale, recommandations et perspectives",
+                objective="Clore le manuscrit, ouvrir les perspectives scientifiques et preciser les prolongements possibles.",
+                key_sections=[
+                    "Synthese des apports",
+                    "Recommandations techniques",
+                    "Perspectives de recherche",
+                    "Valorisation possible des resultats",
+                ],
+                expected_outputs=[
+                    "Synthese executive du travail",
+                    "Recommandations applicables",
+                    "Liste de travaux futurs",
+                ],
+            ).model_dump()
+        )
+    else:
+        chapters.append(
+            ThesisChapter(
+                chapter_number=6,
+                title="Conclusion generale et recommandations",
+                objective="Resumer les acquis du travail et proposer des suites realistes pour un TFE ou memoire.",
+                key_sections=[
+                    "Synthese des resultats",
+                    "Reponse a la problematique",
+                    "Recommandations de mise en oeuvre",
+                    "Perspectives courtes",
+                ],
+                expected_outputs=[
+                    "Conclusion exploitable pour la defense",
+                    "Recommandations techniques claires",
+                    "Perspectives realistes",
+                ],
+            ).model_dump()
+        )
+
+    return chapters
+
+
+def _build_thesis_literature_strategy(domain_focus: str) -> dict[str, Any]:
+    return LiteratureStrategy(
+        objective=f"Constituer une bibliographie ciblee, recente et defendable sur {domain_focus}.",
+        databases=[
+            "IEEE Xplore",
+            "Scopus ou Web of Science",
+            "ScienceDirect",
+            "SpringerLink",
+            "Crossref",
+            "arXiv",
+            "Google Scholar pour les citations entrantes et sortantes",
+        ],
+        search_queries=[
+            f"\"{domain_focus}\" electrical engineering",
+            f"\"{domain_focus}\" simulation OR modelling OR control",
+            f"\"{domain_focus}\" optimization OR performance OR reliability",
+            f"\"{domain_focus}\" review OR survey OR state of the art",
+        ],
+        screening_criteria=[
+            "Prioriser les sources des 5 a 7 dernieres annees, sauf les references fondatrices.",
+            "Conserver les articles avec methode explicite, donnees ou metriques comparables.",
+            "Exclure les travaux trop eloignes du perimetre electrotechnique retenu.",
+            "Noter systematiquement le probleme, la methode, les donnees, les metriques et les limites.",
+        ],
+        evidence_matrix=[
+            "Reference complete",
+            "Probleme traite",
+            "Methode / modele",
+            "Jeu de donnees ou cas d'etude",
+            "Metriques de performance",
+            "Limites identifiees",
+            "Gap exploitable pour ton travail",
+        ],
+        watch_routine=[
+            "Bloquer 2 seances par semaine pour la veille et la mise a jour de la bibliographie.",
+            "Ajouter des alertes Google Scholar / Crossref sur les mots-cles principaux.",
+            "Mettre a jour un tableau de suivi des references lues, citees et a relire.",
+        ],
+    ).model_dump()
+
+
+def _build_thesis_methodology_blueprint(domain_focus: str) -> dict[str, Any]:
+    lowered_focus = domain_focus.lower()
+    tools = ["Python", "Jupyter", "Zotero ou Mendeley"]
+    if "transform" in lowered_focus or "relais" in lowered_focus or "protection" in lowered_focus:
+        tools.extend(["MATLAB/Simulink", "ETAP ou DIgSILENT"])
+    elif "motor" in lowered_focus or "moteur" in lowered_focus:
+        tools.extend(["MATLAB/Simulink", "PSIM ou LTspice"])
+    elif "microreseau" in lowered_focus or "renouvelable" in lowered_focus:
+        tools.extend(["MATLAB/Simulink", "HOMER ou DIgSILENT"])
+    else:
+        tools.extend(["MATLAB/Simulink ou LTspice", "Excel ou Power BI pour la synthese"])
+
+    return MethodologyBlueprint(
+        approach=(
+            "Approche mixte basee sur revue de litterature, modelisation, simulations parametriques, "
+            "analyse comparative et discussion critique des limites."
+        ),
+        work_packages=[
+            "WP1: cadrage du sujet, perimetre et gap de recherche",
+            "WP2: corpus bibliographique et matrice de synthese",
+            "WP3: modelisation du systeme et definition des hypotheses",
+            "WP4: campagnes de simulation ou essais",
+            "WP5: analyse, redaction et consolidation des apports",
+        ],
+        tools=tools,
+        inputs=[
+            f"Parametres techniques representatifs de {domain_focus}",
+            "Hypotheses de fonctionnement et contraintes de dimensionnement",
+            "Scenarios nominaux, defaut et sensibilite si applicable",
+            "Corpus bibliographique trace et annote",
+        ],
+        validation_metrics=[
+            "Precision ou erreur relative selon le cas d'etude",
+            "Rendement, pertes, stabilite, temps de reponse ou qualite de regulation",
+            "Robustesse aux variations parametriques",
+            "Comparaison avec au moins une reference ou solution de base",
+        ],
+        risk_controls=[
+            "Limiter le sujet a un cas d'usage concret pour eviter un manuscrit trop large.",
+            "Definir des hypotheses testables avant les simulations.",
+            "Conserver un journal de version des modeles et des resultats.",
+            "Valider tot le plan avec l'encadreur avant de rediger massivement.",
+        ],
+    ).model_dump()
+
+
+def _build_thesis_writing_calendar(academic_level: str) -> list[dict[str, Any]]:
+    if academic_level == "these":
+        milestones = [
+            ("Phase 1", "Semaines 1-2", "Cadrage scientifique", ["Sujet finalise", "Problematique", "Objectifs", "Hypotheses"]),
+            ("Phase 2", "Semaines 3-5", "Revue de litterature", ["Matrice bibliographique", "Synthese critique", "Gap formule"]),
+            ("Phase 3", "Semaines 6-8", "Modelisation et architecture", ["Modeles", "Hypotheses retenues", "Plan experimental"]),
+            ("Phase 4", "Semaines 9-12", "Simulations ou experimentation", ["Cas d'etude", "Resultats bruts", "Scripts ou modeles"]),
+            ("Phase 5", "Semaines 13-15", "Analyse et discussion", ["Tableaux comparatifs", "Discussion critique", "Contribution formelle"]),
+            ("Phase 6", "Semaines 16-18", "Redaction des chapitres techniques", ["Chapitres 2 a 5 rediges", "Figures nettoyees"]),
+            ("Phase 7", "Semaines 19-20", "Conclusion et harmonisation", ["Conclusion generale", "Perspectives", "References homogenisees"]),
+        ]
+    else:
+        milestones = [
+            ("Phase 1", "Semaines 1-2", "Choix du sujet et cadrage", ["Sujet valide", "Problematique", "Objectifs", "Plan initial"]),
+            ("Phase 2", "Semaines 3-4", "Etat de l'art", ["Corpus bibliographique", "Tableau comparatif", "Gap identifie"]),
+            ("Phase 3", "Semaines 5-7", "Methodologie et modelisation", ["Modele", "Hypotheses", "Protocoles"]),
+            ("Phase 4", "Semaines 8-10", "Simulations, essais et collecte", ["Resultats", "Courbes", "Tableaux"]),
+            ("Phase 5", "Semaines 11-12", "Analyse et redaction", ["Discussion", "Conclusion", "Diaporama de defense"]),
+        ]
+
+    return [
+        WritingMilestone(
+            phase=phase,
+            week_range=week_range,
+            focus=focus,
+            deliverables=deliverables,
+        ).model_dump()
+        for phase, week_range, focus, deliverables in milestones
+    ]
+
+
+def _build_thesis_novelty_angle(domain_focus: str) -> str:
+    lowered_focus = domain_focus.lower()
+    if "renouvelable" in lowered_focus or "microreseau" in lowered_focus:
+        return "Combiner gestion energetique, robustesse reseau et contraintes locales d'exploitation pour proposer une architecture ou une strategie mieux adaptee que les approches generalistes."
+    if "transform" in lowered_focus:
+        return "Coupler analyse des pertes, contraintes thermiques et scenarios de charges non lineaires afin de produire des recommandations de dimensionnement ou de maintenance plus fines."
+    if "relais" in lowered_focus or "protection" in lowered_focus:
+        return "Montrer comment une logique de protection plus adaptive peut ameliorer selectivite, rapidite et fiabilite dans des reseaux modernes avec convertisseurs ou production distribuee."
+    if "moteur" in lowered_focus or "machines" in lowered_focus:
+        return "Articuler commande, diagnostic et performance energetique pour proposer une methode plus robuste et plus facilement deployable en contexte industriel."
+    return "Ancrer la contribution dans un cas d'usage electrotechnique realiste, avec des metriques claires et une comparaison honnete a l'etat de l'art."
+
+
+def _build_thesis_workflow_payload(query: str) -> dict[str, Any]:
+    normalized_query = _normalize_text(query)
+    academic_level = _infer_academic_level(normalized_query)
+    deliverable_type = _infer_deliverable_type(normalized_query)
+    domain_focus = _extract_academic_focus(normalized_query)
+    title_options = _generate_academic_titles(domain_focus)
+    proposed_topic = title_options[0]
+    novelty_angle = _build_thesis_novelty_angle(domain_focus)
+
+    problem_statement = (
+        f"Dans le domaine '{domain_focus}', les solutions existantes restent souvent limitees par des hypotheses simplificatrices, "
+        "des contextes de validation trop etroits ou une prise en compte insuffisante des contraintes d'exploitation. "
+        "Le travail doit donc definir un gap clair, proposer une demarche defendable et produire une contribution originale adossee a des preuves."
+    )
+    hypotheses = [
+        f"Une modelisation rigoureuse de {domain_focus} permet d'identifier des leviers d'amelioration mesurables.",
+        "Une comparaison structuree avec l'etat de l'art mettra en evidence un gap exploitable pour une contribution originale.",
+        "Une validation par simulation, etude de cas ou experimentation permettra de soutenir les conclusions de maniere credible.",
+    ]
+    objectives = [
+        f"Formuler un sujet precis et defendable sur {domain_focus}.",
+        "Structurer un plan de redaction chapitre par chapitre avec sorties attendues.",
+        "Definir une strategie bibliographique, une methode de validation et un calendrier de redaction realiste.",
+        "Faire ressortir une contribution originale, limitee mais verifiable.",
+    ]
+    research_questions = [
+        f"Quel est le gap principal de recherche ou d'ingenierie sur {domain_focus} ?",
+        "Quelle methode permettra de repondre a la problematique avec un niveau de preuve suffisant ?",
+        "Quels indicateurs permettront de comparer objectivement la proposition aux travaux existants ?",
+    ]
+    quality_checklist = [
+        "La problematique tient en 3 a 5 lignes et pointe une limite precise de l'etat de l'art.",
+        "Chaque chapitre repond a une question explicite et produit une sortie identifiable.",
+        "Toutes les affirmations techniques importantes sont reliees a une source ou a un resultat.",
+        "Les figures, tableaux et annexes sont cites dans le texte et interpretes.",
+        "Les limites du travail et les perspectives sont explicites, non decoratives.",
+        "Le manuscrit reste original et ne copie ni la litterature ni le contenu brut de l'assistant.",
+    ]
+    originality_note = (
+        "Le workflow propose un cadre de production et de recherche. Il doit servir de base de travail, pas de texte final a recopier. "
+        "Le manuscrit final doit etre personnel, cite correctement ses sources et refleter une verification technique reelle."
+    )
+    next_actions = [
+        "Valider le sujet et le perimetre avec l'encadreur avant de lancer la redaction detaillee.",
+        "Demander ensuite une recherche ciblee avec /gpt-tool ou /arxiv pour peupler la revue de litterature.",
+        "Demander une simulation ou un calcul si la methode retenue l'exige.",
+        "Mettre en place un dossier de travail avec bibliographie, figures, scripts et journal de decisions.",
+    ]
+
+    return ThesisWorkflowResponse(
+        status="ok",
+        source="thesis-workflow",
+        query=query,
+        normalized_query=normalized_query,
+        academic_level=academic_level,
+        deliverable_type=deliverable_type,
+        domain_focus=domain_focus,
+        proposed_topic=proposed_topic,
+        title_options=title_options,
+        problem_statement=problem_statement,
+        novelty_angle=novelty_angle,
+        hypotheses=hypotheses,
+        objectives=objectives,
+        research_questions=research_questions,
+        chapter_plan=[ThesisChapter(**item) for item in _build_thesis_chapter_plan(domain_focus, academic_level)],
+        literature_strategy=LiteratureStrategy(**_build_thesis_literature_strategy(domain_focus)),
+        methodology_blueprint=MethodologyBlueprint(**_build_thesis_methodology_blueprint(domain_focus)),
+        writing_calendar=[WritingMilestone(**item) for item in _build_thesis_writing_calendar(academic_level)],
+        quality_checklist=quality_checklist,
+        originality_note=originality_note,
+        next_actions=next_actions,
+    ).model_dump()
 
 
 def _is_math_expression(query: str) -> bool:
@@ -1111,6 +1821,12 @@ def _decide_smart_route(query: str) -> tuple[str, str]:
     if _is_math_expression(query) or _contains_any(lowered_query, CALCULATION_HINTS):
         return "wolfram", "Question detectee comme calcul, formule ou evaluation mathematique."
 
+    if _looks_like_thesis_workflow_request(query):
+        return "thesis", "Question detectee comme demande de workflow complet pour TFE, memoire ou these."
+
+    if _looks_like_academic_request(query):
+        return "academic", "Question detectee comme demande de TFE, these, memoire ou guidage de recherche academique."
+
     if _contains_any(lowered_query, RESEARCH_KEYWORDS):
         return "arxiv", "Question detectee comme recherche bibliographique ou demande d'articles."
 
@@ -1182,6 +1898,12 @@ def _build_redirect_path(mode: str, query: str, max_results: int, auto_filter: b
     if mode == "simulation":
         return f"/simulate?{urlencode({'input': query})}"
 
+    if mode == "thesis":
+        return f"/thesis-workflow?{urlencode({'input': query})}"
+
+    if mode == "academic":
+        return f"/academic-assistant?{urlencode({'input': query})}"
+
     return None
 
 
@@ -1200,6 +1922,30 @@ def _build_arxiv_brief(payload: dict[str, Any]) -> str:
     if warning:
         brief = f"{brief} Note: {warning}"
     return brief
+
+
+def _build_academic_brief(payload: dict[str, Any]) -> str:
+    titles = payload.get("title_suggestions", [])
+    title_text = " ; ".join(titles[:3])
+    return (
+        f"Assistant academique pret pour {payload.get('academic_level', 'projet-academique')} sur "
+        f"{payload.get('domain_focus', 'le sujet demande')}. "
+        f"Propositions de titres: {title_text}. "
+        "Le detail contient la problematique, les objectifs, les questions de recherche, la methodologie et le plan de redaction."
+    )
+
+
+def _build_thesis_workflow_brief(payload: dict[str, Any]) -> str:
+    proposed_topic = payload.get("proposed_topic", "le sujet demande")
+    chapter_count = len(payload.get("chapter_plan", []))
+    calendar_count = len(payload.get("writing_calendar", []))
+    return (
+        f"Workflow de redaction et de recherche pret pour {payload.get('academic_level', 'projet-academique')} sur "
+        f"{payload.get('domain_focus', 'le sujet demande')}. "
+        f"Sujet propose: {proposed_topic}. "
+        f"Le detail contient {chapter_count} chapitres structures, une strategie bibliographique, une methodologie et "
+        f"un calendrier sur {calendar_count} phases."
+    )
 
 
 def _build_direct_response(query: str) -> str:
@@ -1284,6 +2030,32 @@ def _build_gpt_tool_results(mode: str, data: dict[str, Any], fallback_answer: st
             ).model_dump()
         ]
 
+    if mode == "thesis":
+        return [
+            GptToolResult(
+                title=title,
+                snippet=data.get("novelty_angle", fallback_answer),
+                link="",
+                published="",
+                authors=[],
+                provider=data.get("source", "thesis-workflow"),
+            ).model_dump()
+            for title in data.get("title_options", [])[:3]
+        ]
+
+    if mode == "academic":
+        return [
+            GptToolResult(
+                title=title,
+                snippet=data.get("problem_statement", fallback_answer),
+                link="",
+                published="",
+                authors=[],
+                provider=data.get("source", "academic-assistant"),
+            ).model_dump()
+            for title in data.get("title_suggestions", [])[:3]
+        ]
+
     return []
 
 
@@ -1296,6 +2068,12 @@ def _to_gpt_tool_response(smart_payload: dict[str, Any]) -> dict[str, Any]:
     if mode == "arxiv":
         source = data.get("provider") or data.get("source") or "arxiv"
         query_used = data.get("effective_query") or smart_payload.get("normalized_input") or smart_payload.get("input", "")
+    elif mode == "thesis":
+        source = data.get("source", "thesis-workflow")
+        query_used = data.get("normalized_query") or smart_payload.get("normalized_input") or smart_payload.get("input", "")
+    elif mode == "academic":
+        source = data.get("source", "academic-assistant")
+        query_used = data.get("normalized_query") or smart_payload.get("normalized_input") or smart_payload.get("input", "")
     elif mode == "simulation":
         source = data.get("source", "simulation-engine")
         query_used = smart_payload.get("normalized_input") or smart_payload.get("input", "")
@@ -1335,7 +2113,7 @@ def _build_chatgpt_action_openapi(server_url: str) -> dict[str, Any]:
     full_spec["openapi"] = "3.1.0"
     full_spec["info"] = {
         "title": "Electrotechnique GPT Action API",
-        "description": "Minimal OpenAPI schema expose uniquement l'endpoint /gpt-tool pour ChatGPT Actions.",
+        "description": "Minimal OpenAPI schema expose uniquement l'endpoint /gpt-tool pour ChatGPT Actions, avec calcul, simulation, recherche technique et workflow academique.",
         "version": app.version,
     }
     full_spec["servers"] = [
@@ -1356,10 +2134,11 @@ def _build_ai_plugin_manifest(base_url: str) -> dict[str, Any]:
         "schema_version": "v1",
         "name_for_human": "Electrotechnique GPT Tool",
         "name_for_model": "electrotechnique_gpt_tool",
-        "description_for_human": "Calculs scientifiques, simulations avancees et recherche documentaire electrotechnique pour ChatGPT.",
+        "description_for_human": "Calculs scientifiques, simulations avancees, recherche documentaire et workflow TFE/these pour ChatGPT.",
         "description_for_model": (
             "Use this tool for scientific calculations, advanced electrical simulations, transformer-loss queries, "
-            "three-phase or motor analysis, and electrical-engineering paper retrieval. Send the user request in the input field."
+            "three-phase or motor analysis, electrical-engineering paper retrieval, and academic assistance for TFE, memoire or thesis workflows and planning. "
+            "Send the user request in the input field."
         ),
         "auth": {"type": "none"},
         "api": {
@@ -1585,6 +2364,8 @@ def home():
             "/health",
             "/wolfram",
             "/arxiv",
+            "/academic-assistant",
+            "/thesis-workflow",
             "/simulate",
             "/research",
             "/smart-query",
@@ -1647,6 +2428,60 @@ def search_arxiv(
         sort_by,
         _get_bool_param(auto_filter, True),
     )
+
+
+@app.get(
+    "/academic-assistant",
+    response_model=AcademicAssistantResponse,
+    response_model_exclude_none=True,
+    summary="Assistant academique",
+    description="Cadrage d'un TFE, PFE, memoire ou these: problematique, objectifs, questions, methode, plan, outils et strategie de recherche.",
+)
+def academic_assistant(
+    query: str | None = Query(None, min_length=2, max_length=400, description="Sujet ou besoin academique a cadrer"),
+    input_text: str | None = Query(
+        None,
+        alias="input",
+        min_length=2,
+        max_length=400,
+        description="Alias principal pour une demande de TFE, memoire ou these",
+    ),
+):
+    raw_query = _get_text_param(query) or _get_text_param(input_text)
+    if not raw_query:
+        raise HTTPException(
+            status_code=422,
+            detail="Fournis un parametre 'query' ou 'input'.",
+        )
+
+    return _build_academic_assistant_payload(raw_query)
+
+
+@app.get(
+    "/thesis-workflow",
+    response_model=ThesisWorkflowResponse,
+    response_model_exclude_none=True,
+    summary="Workflow TFE / these",
+    description="Genere un workflow academique complet: sujet propose, problematique, hypotheses, plan detaille par chapitre, strategie bibliographique, methodologie et calendrier de redaction.",
+)
+def thesis_workflow(
+    query: str | None = Query(None, min_length=2, max_length=500, description="Sujet ou besoin de workflow academique"),
+    input_text: str | None = Query(
+        None,
+        alias="input",
+        min_length=2,
+        max_length=500,
+        description="Alias principal pour un workflow de TFE, memoire ou these",
+    ),
+):
+    raw_query = _get_text_param(query) or _get_text_param(input_text)
+    if not raw_query:
+        raise HTTPException(
+            status_code=422,
+            detail="Fournis un parametre 'query' ou 'input'.",
+        )
+
+    return _build_thesis_workflow_payload(raw_query)
 
 
 @app.get(
@@ -1744,94 +2579,142 @@ def smart_query(
     max_results_value = _get_int_param(max_results, 3)
     auto_filter_value = _get_bool_param(auto_filter, True)
     route, reason = _decide_smart_route(normalized_query)
+    try:
+        if route == "wolfram":
+            try:
+                payload = _fetch_wolfram_result(normalized_query)
+                return _build_smart_payload(
+                    status="ok",
+                    mode="wolfram",
+                    raw_query=raw_query,
+                    normalized_query=normalized_query,
+                    reason=reason,
+                    max_results=max_results_value,
+                    auto_filter=auto_filter_value,
+                    executed=True,
+                    response=payload.get("result"),
+                    data=payload,
+                )
+            except HTTPException as exc:
+                return _build_smart_payload(
+                    status="error",
+                    mode="wolfram",
+                    raw_query=raw_query,
+                    normalized_query=normalized_query,
+                    reason=reason,
+                    max_results=max_results_value,
+                    auto_filter=auto_filter_value,
+                    executed=False,
+                    response="Le mode Wolfram a ete selectionne, mais l'execution a echoue.",
+                    error=str(exc.detail),
+                )
 
-    if route == "wolfram":
-        try:
-            payload = _fetch_wolfram_result(normalized_query)
+        if route == "simulation":
+            payload = _simulate_from_query(normalized_query)
             return _build_smart_payload(
-                status="ok",
-                mode="wolfram",
+                status=payload.get("status", "ok"),
+                mode="simulation",
+                raw_query=raw_query,
+                normalized_query=normalized_query,
+                reason=reason,
+                max_results=max_results_value,
+                auto_filter=auto_filter_value,
+                executed=payload.get("status") == "ok",
+                response=payload.get("summary"),
+                data=payload,
+                error="" if payload.get("status") == "ok" else payload.get("summary"),
+            )
+
+        if route == "thesis":
+            payload = _build_thesis_workflow_payload(normalized_query)
+            return _build_smart_payload(
+                status=payload.get("status", "ok"),
+                mode="thesis",
                 raw_query=raw_query,
                 normalized_query=normalized_query,
                 reason=reason,
                 max_results=max_results_value,
                 auto_filter=auto_filter_value,
                 executed=True,
-                response=payload.get("result"),
+                response=_build_thesis_workflow_brief(payload),
                 data=payload,
             )
-        except HTTPException as exc:
+
+        if route == "academic":
+            payload = _build_academic_assistant_payload(normalized_query)
             return _build_smart_payload(
-                status="error",
-                mode="wolfram",
+                status=payload.get("status", "ok"),
+                mode="academic",
                 raw_query=raw_query,
                 normalized_query=normalized_query,
                 reason=reason,
                 max_results=max_results_value,
                 auto_filter=auto_filter_value,
-                executed=False,
-                response="Le mode Wolfram a ete selectionne, mais l'execution a echoue.",
-                error=str(exc.detail),
+                executed=True,
+                response=_build_academic_brief(payload),
+                data=payload,
             )
 
-    if route == "simulation":
-        payload = _simulate_from_query(normalized_query)
+        if route == "arxiv":
+            try:
+                payload = _fetch_arxiv_results(normalized_query, max_results_value, "relevance", auto_filter_value)
+                return _build_smart_payload(
+                    status=payload.get("status", "ok"),
+                    mode="arxiv",
+                    raw_query=raw_query,
+                    normalized_query=normalized_query,
+                    reason=reason,
+                    max_results=max_results_value,
+                    auto_filter=auto_filter_value,
+                    executed=True,
+                    response=_build_arxiv_brief(payload),
+                    data=payload,
+                )
+            except HTTPException as exc:
+                return _build_smart_payload(
+                    status="error",
+                    mode="arxiv",
+                    raw_query=raw_query,
+                    normalized_query=normalized_query,
+                    reason=reason,
+                    max_results=max_results_value,
+                    auto_filter=auto_filter_value,
+                    executed=False,
+                    response="Le mode arXiv a ete selectionne, mais l'execution a echoue.",
+                    error=str(exc.detail),
+                )
+
+        direct_response = _build_direct_response(normalized_query)
         return _build_smart_payload(
-            status=payload.get("status", "ok"),
-            mode="simulation",
+            status="ok",
+            mode="basic",
             raw_query=raw_query,
             normalized_query=normalized_query,
             reason=reason,
             max_results=max_results_value,
             auto_filter=auto_filter_value,
-            executed=payload.get("status") == "ok",
-            response=payload.get("summary"),
-            data=payload,
-            error="" if payload.get("status") == "ok" else payload.get("summary"),
+            executed=False,
+            response=direct_response,
+            answer=direct_response,
         )
-
-    if route == "arxiv":
-        try:
-            payload = _fetch_arxiv_results(normalized_query, max_results_value, "relevance", auto_filter_value)
-            return _build_smart_payload(
-                status=payload.get("status", "ok"),
-                mode="arxiv",
-                raw_query=raw_query,
-                normalized_query=normalized_query,
-                reason=reason,
-                max_results=max_results_value,
-                auto_filter=auto_filter_value,
-                executed=True,
-                response=_build_arxiv_brief(payload),
-                data=payload,
-            )
-        except HTTPException as exc:
-            return _build_smart_payload(
-                status="error",
-                mode="arxiv",
-                raw_query=raw_query,
-                normalized_query=normalized_query,
-                reason=reason,
-                max_results=max_results_value,
-                auto_filter=auto_filter_value,
-                executed=False,
-                response="Le mode arXiv a ete selectionne, mais l'execution a echoue.",
-                error=str(exc.detail),
-            )
-
-    direct_response = _build_direct_response(normalized_query)
-    return _build_smart_payload(
-        status="ok",
-        mode="basic",
-        raw_query=raw_query,
-        normalized_query=normalized_query,
-        reason=reason,
-        max_results=max_results_value,
-        auto_filter=auto_filter_value,
-        executed=False,
-        response=direct_response,
-        answer=direct_response,
-    )
+    except Exception as exc:
+        safe_response = (
+            "Une erreur interne inattendue est survenue pendant le routage de la requete. "
+            "Le GPT peut demander une reformulation ou reessayer avec une question plus precise."
+        )
+        return _build_smart_payload(
+            status="error",
+            mode="basic",
+            raw_query=raw_query,
+            normalized_query=normalized_query,
+            reason="Erreur interne capturee par le routeur intelligent.",
+            max_results=max_results_value,
+            auto_filter=auto_filter_value,
+            executed=False,
+            response=safe_response,
+            answer=safe_response,
+            error=str(exc),
+        )
 
 
 @app.get(
@@ -1862,12 +2745,28 @@ def gpt_tool(
             detail="Fournis un parametre 'query' ou 'input'.",
         )
 
-    smart_payload = smart_query(
-        query=raw_query,
-        max_results=_get_int_param(max_results, 3),
-        auto_filter=_get_bool_param(auto_filter, True),
-    )
-    return _to_gpt_tool_response(smart_payload)
+    try:
+        smart_payload = smart_query(
+            query=raw_query,
+            max_results=_get_int_param(max_results, 3),
+            auto_filter=_get_bool_param(auto_filter, True),
+        )
+        return _to_gpt_tool_response(smart_payload)
+    except Exception as exc:
+        return GptToolResponse(
+            status="error",
+            tool="gpt-tool",
+            mode="basic",
+            input=raw_query,
+            query_used=_normalize_text(raw_query),
+            executed=False,
+            source="direct",
+            redirect="",
+            answer="Une erreur interne inattendue est survenue. Reformule la demande ou reessaie.",
+            results=[],
+            details={},
+            error=str(exc),
+        ).model_dump()
 
 
 @app.get("/openapi.chatgpt.json", include_in_schema=False)
