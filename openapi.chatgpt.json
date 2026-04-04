@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Electrotechnique GPT Action API",
-    "description": "Minimal OpenAPI schema expose uniquement l'endpoint /gpt-tool pour ChatGPT Actions, avec calcul, simulation, recherche technique et workflow academique.",
-    "version": "2.2.0"
+    "description": "Minimal OpenAPI schema expose uniquement l'endpoint /gpt-tool pour ChatGPT Actions, avec calcul, simulation, dashboard temps reel, visualisation, ingestion live capteurs/automates, diagnostic d'ingenierie, recherche technique et workflow academique.",
+    "version": "2.4.0"
   },
   "paths": {
     "/gpt-tool": {
@@ -302,6 +302,150 @@
         ],
         "title": "ArxivResponse"
       },
+      "ConnectorStatusResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "mqtt": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Mqtt"
+          },
+          "telemetry_channels": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Telemetry Channels"
+          },
+          "total_points": {
+            "type": "integer",
+            "title": "Total Points"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "source",
+          "total_points"
+        ],
+        "title": "ConnectorStatusResponse"
+      },
+      "EngineeringDiagnosisResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "normalized_query": {
+            "type": "string",
+            "title": "Normalized Query"
+          },
+          "domain": {
+            "type": "string",
+            "title": "Domain"
+          },
+          "system_family": {
+            "type": "string",
+            "title": "System Family"
+          },
+          "severity": {
+            "type": "string",
+            "title": "Severity"
+          },
+          "symptom_summary": {
+            "type": "string",
+            "title": "Symptom Summary"
+          },
+          "probable_causes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Probable Causes"
+          },
+          "quick_checks": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Quick Checks"
+          },
+          "measurements_to_take": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Measurements To Take"
+          },
+          "equations_to_check": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Equations To Check"
+          },
+          "recommended_tools": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Recommended Tools"
+          },
+          "simulation_candidates": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Simulation Candidates"
+          },
+          "action_plan": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Action Plan"
+          },
+          "visual_support": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Visual Support"
+          },
+          "escalation_note": {
+            "type": "string",
+            "title": "Escalation Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "source",
+          "query",
+          "normalized_query",
+          "domain",
+          "system_family",
+          "severity",
+          "symptom_summary",
+          "escalation_note"
+        ],
+        "title": "EngineeringDiagnosisResponse"
+      },
       "GptToolResponse": {
         "properties": {
           "status": {
@@ -510,6 +654,76 @@
         ],
         "title": "LiteratureStrategy"
       },
+      "LiveConnectorResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "dashboard_url": {
+            "type": "string",
+            "title": "Dashboard Url"
+          },
+          "stream_url": {
+            "type": "string",
+            "title": "Stream Url"
+          },
+          "http_ingest_url": {
+            "type": "string",
+            "title": "Http Ingest Url"
+          },
+          "websocket_ingest_url_template": {
+            "type": "string",
+            "title": "Websocket Ingest Url Template"
+          },
+          "websocket_watch_url_template": {
+            "type": "string",
+            "title": "Websocket Watch Url Template"
+          },
+          "mqtt_status": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Mqtt Status"
+          },
+          "modbus_example_url": {
+            "type": "string",
+            "title": "Modbus Example Url"
+          },
+          "next_steps": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Next Steps"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "source",
+          "query",
+          "summary",
+          "dashboard_url",
+          "stream_url",
+          "http_ingest_url",
+          "websocket_ingest_url_template",
+          "websocket_watch_url_template",
+          "modbus_example_url"
+        ],
+        "title": "LiveConnectorResponse"
+      },
       "MethodologyBlueprint": {
         "properties": {
           "approach": {
@@ -557,6 +771,79 @@
           "approach"
         ],
         "title": "MethodologyBlueprint"
+      },
+      "ModbusReadResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "host": {
+            "type": "string",
+            "title": "Host"
+          },
+          "port": {
+            "type": "integer",
+            "title": "Port"
+          },
+          "unit_id": {
+            "type": "integer",
+            "title": "Unit Id"
+          },
+          "register_type": {
+            "type": "string",
+            "title": "Register Type"
+          },
+          "address": {
+            "type": "integer",
+            "title": "Address"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "channel": {
+            "type": "string",
+            "title": "Channel"
+          },
+          "values": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Values"
+          },
+          "frame": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TelemetryFrame"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "type": "string",
+            "title": "Error",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "source",
+          "host",
+          "port",
+          "unit_id",
+          "register_type",
+          "address",
+          "count",
+          "channel"
+        ],
+        "title": "ModbusReadResponse"
       },
       "PaperResult": {
         "properties": {
@@ -617,6 +904,61 @@
           "title"
         ],
         "title": "PaperResult"
+      },
+      "RealtimeSimulationResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "dashboard_url": {
+            "type": "string",
+            "title": "Dashboard Url"
+          },
+          "stream_url": {
+            "type": "string",
+            "title": "Stream Url"
+          },
+          "recommended_signals": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Recommended Signals"
+          },
+          "pace_ms": {
+            "type": "integer",
+            "title": "Pace Ms"
+          },
+          "simulation": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Simulation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "source",
+          "query",
+          "summary",
+          "dashboard_url",
+          "stream_url",
+          "pace_ms"
+        ],
+        "title": "RealtimeSimulationResponse"
       },
       "ResearchResponse": {
         "properties": {
@@ -766,6 +1108,25 @@
             "type": "object",
             "title": "Metrics"
           },
+          "interpretation": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Interpretation"
+          },
+          "visualizations": {
+            "items": {
+              "$ref": "#/components/schemas/VisualizationAsset"
+            },
+            "type": "array",
+            "title": "Visualizations"
+          },
+          "streaming": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Streaming"
+          },
           "count": {
             "type": "integer",
             "title": "Count"
@@ -910,6 +1271,99 @@
           "executed"
         ],
         "title": "SmartQueryResponse"
+      },
+      "TelemetryFrame": {
+        "properties": {
+          "sequence": {
+            "type": "integer",
+            "title": "Sequence"
+          },
+          "channel": {
+            "type": "string",
+            "title": "Channel"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "timestamp_ms": {
+            "type": "integer",
+            "title": "Timestamp Ms"
+          },
+          "values": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Values"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sequence",
+          "channel",
+          "source",
+          "timestamp_ms"
+        ],
+        "title": "TelemetryFrame"
+      },
+      "TelemetryIngestRequest": {
+        "properties": {
+          "channel": {
+            "type": "string",
+            "title": "Channel"
+          },
+          "values": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Values"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source",
+            "default": "http"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "channel"
+        ],
+        "title": "TelemetryIngestRequest"
+      },
+      "TelemetryIngestResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "frame": {
+            "$ref": "#/components/schemas/TelemetryFrame"
+          },
+          "retained_points": {
+            "type": "integer",
+            "title": "Retained Points"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "source",
+          "frame",
+          "retained_points"
+        ],
+        "title": "TelemetryIngestResponse"
       },
       "ThesisChapter": {
         "properties": {
@@ -1114,6 +1568,46 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "VisualizationAsset": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "format": {
+            "type": "string",
+            "title": "Format"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "signals": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Signals"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "kind",
+          "format",
+          "url",
+          "description"
+        ],
+        "title": "VisualizationAsset"
       },
       "WolframResponse": {
         "properties": {

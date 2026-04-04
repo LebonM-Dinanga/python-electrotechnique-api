@@ -1,18 +1,31 @@
 ﻿import html
+import asyncio
 import json
 import math
 import os
 import re
 import time
 import xml.etree.ElementTree as ET
+from collections import defaultdict, deque
+from threading import Lock
 from typing import Any
 from urllib.parse import urlencode
 
 import requests
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import Body, FastAPI, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
+
+try:
+    import paho.mqtt.client as mqtt
+except ImportError:
+    mqtt = None
+
+try:
+    from pymodbus.client import ModbusTcpClient
+except ImportError:
+    ModbusTcpClient = None
 
 WOLFRAM_APP_ID = os.getenv("WOLFRAM_APP_ID", "").strip()
 CONTACT_EMAIL = os.getenv("CONTACT_EMAIL", "lebonmukendi17@gmail.com")
@@ -34,6 +47,13 @@ CROSSREF_API_URL = "https://api.crossref.org/works"
 WOLFRAM_API_URL = "https://api.wolframalpha.com/v1/result"
 RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
 ARXIV_DOMAIN_FILTER = os.getenv("ARXIV_DOMAIN_FILTER", "electrical engineering")
+MAX_TELEMETRY_POINTS = int(os.getenv("MAX_TELEMETRY_POINTS", "600"))
+MQTT_BROKER_HOST = os.getenv("MQTT_BROKER_HOST", "").strip()
+MQTT_BROKER_PORT = int(os.getenv("MQTT_BROKER_PORT", "1883"))
+MQTT_TOPIC_PREFIX = os.getenv("MQTT_TOPIC_PREFIX", "electrogpt/telemetry").strip().strip("/")
+MQTT_USERNAME = os.getenv("MQTT_USERNAME", "").strip()
+MQTT_PASSWORD = os.getenv("MQTT_PASSWORD", "").strip()
+MQTT_KEEPALIVE = int(os.getenv("MQTT_KEEPALIVE", "60"))
 
 RESEARCH_KEYWORDS = {
     "paper",
@@ -130,6 +150,54 @@ THESIS_WORKFLOW_HINTS = {
     "hypotheses",
     "contribution originale",
     "novelty",
+}
+DIAGNOSIS_HINTS = {
+    "problem",
+    "probleme",
+    "problÃ¨me",
+    "fault",
+    "failure",
+    "panne",
+    "diagnostic",
+    "diagnosis",
+    "debug",
+    "troubleshoot",
+    "troubleshooting",
+    "cause",
+    "root cause",
+    "pourquoi",
+    "why",
+    "trip",
+    "trips",
+    "declenche",
+    "dÃ©clenche",
+    "overheat",
+    "surchauffe",
+    "burn",
+    "court-circuit",
+    "short circuit",
+    "voltage drop",
+    "chute de tension",
+    "instable",
+    "unstable",
+    "vibration",
+    "losses too high",
+}
+REALTIME_HINTS = {
+    "temps reel",
+    "temps rÃ©el",
+    "real time",
+    "realtime",
+    "stream",
+    "streaming",
+    "dashboard",
+    "live plot",
+    "live graph",
+    "slider",
+    "sliders",
+    "interactive",
+    "interactif",
+    "courbe en direct",
 }
 CALCULATION_HINTS = {
     "solve",
@@ -429,6 +497,15 @@ class GptToolResponse(BaseModel):
     error: str = ""
 
 
+class VisualizationAsset(BaseModel):
+    title: str
+    kind: str
+    format: str
+    url: str
+    description: str
+    signals: list[str] = Field(default_factory=list)
+
+
 class SimulationPoint(BaseModel):
     time_s: float
     capacitor_voltage_v: float | None = None
@@ -448,14 +525,110 @@ class SimulationResponse(BaseModel):
     summary: str
     parameters: dict[str, Any] = Field(default_factory=dict)
     metrics: dict[str, Any] = Field(default_factory=dict)
+    interpretation: list[str] = Field(default_factory=list)
+    visualizations: list[VisualizationAsset] = Field(default_factory=list)
+    streaming: dict[str, Any] = Field(default_factory=dict)
     count: int
     series: list[SimulationPoint] = Field(default_factory=list)
 
 
+class EngineeringDiagnosisResponse(BaseModel):
+    status: str
+    source: str
+    query: str
+    normalized_query: str
+    domain: str
+    system_family: str
+    severity: str
+    symptom_summary: str
+    probable_causes: list[str] = Field(default_factory=list)
+    quick_checks: list[str] = Field(default_factory=list)
+    measurements_to_take: list[str] = Field(default_factory=list)
+    equations_to_check: list[str] = Field(default_factory=list)
+    recommended_tools: list[str] = Field(default_factory=list)
+    simulation_candidates: list[str] = Field(default_factory=list)
+    action_plan: list[str] = Field(default_factory=list)
+    visual_support: list[str] = Field(default_factory=list)
+    escalation_note: str
+
+
+class RealtimeSimulationResponse(BaseModel):
+    status: str
+    source: str
+    query: str
+    summary: str
+    dashboard_url: str
+    stream_url: str
+    recommended_signals: list[str] = Field(default_factory=list)
+    pace_ms: int
+    simulation: dict[str, Any] = Field(default_factory=dict)
+
+
+class TelemetryFrame(BaseModel):
+    sequence: int
+    channel: str
+    source: str
+    timestamp_ms: int
+    values: dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class TelemetryIngestRequest(BaseModel):
+    channel: str
+    values: dict[str, Any] = Field(default_factory=dict)
+    source: str = "http"
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class TelemetryIngestResponse(BaseModel):
+    status: str
+    source: str
+    frame: TelemetryFrame
+    retained_points: int
+
+
+class ConnectorStatusResponse(BaseModel):
+    status: str
+    source: str
+    mqtt: dict[str, Any] = Field(default_factory=dict)
+    telemetry_channels: list[str] = Field(default_factory=list)
+    total_points: int
+
+
+class LiveConnectorResponse(BaseModel):
+    status: str
+    source: str
+    query: str
+    summary: str
+    dashboard_url: str
+    stream_url: str
+    http_ingest_url: str
+    websocket_ingest_url_template: str
+    websocket_watch_url_template: str
+    mqtt_status: dict[str, Any] = Field(default_factory=dict)
+    modbus_example_url: str
+    next_steps: list[str] = Field(default_factory=list)
+
+
+class ModbusReadResponse(BaseModel):
+    status: str
+    source: str
+    host: str
+    port: int
+    unit_id: int
+    register_type: str
+    address: int
+    count: int
+    channel: str
+    values: dict[str, Any] = Field(default_factory=dict)
+    frame: TelemetryFrame | None = None
+    error: str = ""
+
+
 app = FastAPI(
     title="Python Electrotechnique API",
-    description="API FastAPI pour enrichir un assistant GPT avec WolframAlpha, arXiv, des simulations electrotechniques avancees, un assistant academique et un workflow de these/TFE.",
-    version="2.2.0",
+    description="API FastAPI pour enrichir un assistant GPT avec WolframAlpha, arXiv, des simulations electrotechniques avancees, de la visualisation, de l'ingestion live MQTT/Modbus/WebSocket, du diagnostic d'ingenierie, un assistant academique et un workflow de these/TFE.",
+    version="2.4.0",
 )
 
 app.add_middleware(
@@ -473,6 +646,16 @@ session.headers.update(
         "Accept": "application/atom+xml, application/xml, text/xml, application/json;q=0.9, */*;q=0.8",
     }
 )
+
+
+@app.on_event("startup")
+def startup_connectors() -> None:
+    _start_mqtt_listener()
+
+
+@app.on_event("shutdown")
+def shutdown_connectors() -> None:
+    _stop_mqtt_listener()
 
 
 def _normalize_text(value: str | None) -> str:
@@ -506,6 +689,426 @@ def _get_bool_param(value: object, default: bool) -> bool:
 def _round_float(value: float) -> float:
     return round(value, 6)
 
+
+telemetry_lock = Lock()
+telemetry_store: dict[str, deque[dict[str, Any]]] = defaultdict(lambda: deque(maxlen=MAX_TELEMETRY_POINTS))
+telemetry_sequence = 0
+mqtt_client_instance = None
+mqtt_runtime_state: dict[str, Any] = {
+    "configured": bool(MQTT_BROKER_HOST),
+    "library_available": mqtt is not None,
+    "connected": False,
+    "subscribed_topic": f"{MQTT_TOPIC_PREFIX}/#",
+    "messages_received": 0,
+    "last_error": "",
+}
+
+
+def _sanitize_channel_name(value: str | None) -> str:
+    normalized = _normalize_text(value or "").lower()
+    normalized = re.sub(r"[^a-z0-9:_./-]+", "-", normalized)
+    normalized = normalized.strip("-./")
+    return normalized or "default"
+
+
+def _sanitize_signal_name(value: str | None) -> str:
+    normalized = _normalize_text(value or "").lower().replace(" ", "_")
+    normalized = re.sub(r"[^a-z0-9_./-]+", "_", normalized)
+    normalized = normalized.strip("_./-")
+    return normalized or "value"
+
+
+def _make_json_safe(value: Any) -> Any:
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
+    if isinstance(value, list):
+        return [_make_json_safe(item) for item in value[:20]]
+    if isinstance(value, dict):
+        safe_dict = {}
+        for key, item in list(value.items())[:20]:
+            safe_dict[str(key)] = _make_json_safe(item)
+        return safe_dict
+    return str(value)
+
+
+def _normalize_telemetry_values(values: Any) -> dict[str, Any]:
+    if isinstance(values, dict):
+        normalized = {}
+        for key, value in values.items():
+            signal_name = _sanitize_signal_name(str(key))
+            normalized[signal_name] = _make_json_safe(value)
+        return normalized or {"value": 0}
+    return {"value": _make_json_safe(values)}
+
+
+def _append_telemetry_frame(channel: str, source: str, values: Any, metadata: dict[str, Any] | None = None) -> dict[str, Any]:
+    global telemetry_sequence
+
+    safe_channel = _sanitize_channel_name(channel)
+    safe_values = _normalize_telemetry_values(values)
+    safe_metadata = _make_json_safe(metadata or {})
+
+    with telemetry_lock:
+        telemetry_sequence += 1
+        frame = TelemetryFrame(
+            sequence=telemetry_sequence,
+            channel=safe_channel,
+            source=_sanitize_signal_name(source),
+            timestamp_ms=int(time.time() * 1000),
+            values=safe_values,
+            metadata=safe_metadata if isinstance(safe_metadata, dict) else {},
+        ).model_dump()
+        telemetry_store[safe_channel].append(frame)
+        return frame
+
+
+def _get_telemetry_frames(channel: str, limit: int = 200, after_sequence: int = 0) -> list[dict[str, Any]]:
+    safe_channel = _sanitize_channel_name(channel)
+    with telemetry_lock:
+        frames = list(telemetry_store.get(safe_channel, []))
+    if after_sequence > 0:
+        frames = [frame for frame in frames if int(frame.get("sequence", 0)) > after_sequence]
+    if limit > 0:
+        frames = frames[-limit:]
+    return frames
+
+
+def _get_telemetry_channels() -> list[str]:
+    with telemetry_lock:
+        channels = sorted(telemetry_store.keys())
+    return channels
+
+
+def _get_total_telemetry_points() -> int:
+    with telemetry_lock:
+        return sum(len(points) for points in telemetry_store.values())
+
+
+def _to_ws_base_url(base_url: str) -> str:
+    if base_url.startswith("https://"):
+        return "wss://" + base_url[len("https://") :]
+    if base_url.startswith("http://"):
+        return "ws://" + base_url[len("http://") :]
+    return base_url
+
+
+def _parse_mqtt_message(topic: str, payload_bytes: bytes) -> tuple[str, dict[str, Any], dict[str, Any]]:
+    fallback_channel = _sanitize_channel_name(topic.replace(f"{MQTT_TOPIC_PREFIX}/", "", 1))
+    raw_payload = payload_bytes.decode("utf-8", errors="ignore").strip()
+    if not raw_payload:
+        return fallback_channel, {"value": 0}, {"topic": topic}
+
+    try:
+        decoded = json.loads(raw_payload)
+    except json.JSONDecodeError:
+        return fallback_channel, {"value": raw_payload}, {"topic": topic}
+
+    if isinstance(decoded, dict):
+        channel = _sanitize_channel_name(decoded.get("channel") or fallback_channel)
+        values = decoded.get("values")
+        if values is None:
+            values = {key: value for key, value in decoded.items() if key not in {"channel", "source", "metadata"}}
+        metadata = decoded.get("metadata", {})
+        if not isinstance(metadata, dict):
+            metadata = {"raw_metadata": _make_json_safe(metadata)}
+        metadata["topic"] = topic
+        return channel, _normalize_telemetry_values(values), metadata
+
+    return fallback_channel, _normalize_telemetry_values(decoded), {"topic": topic}
+
+
+def _build_mqtt_status() -> dict[str, Any]:
+    return {
+        "configured": mqtt_runtime_state.get("configured", False),
+        "library_available": mqtt_runtime_state.get("library_available", False),
+        "connected": mqtt_runtime_state.get("connected", False),
+        "subscribed_topic": mqtt_runtime_state.get("subscribed_topic", ""),
+        "messages_received": mqtt_runtime_state.get("messages_received", 0),
+        "last_error": mqtt_runtime_state.get("last_error", ""),
+    }
+
+
+def _start_mqtt_listener() -> None:
+    global mqtt_client_instance
+
+    if mqtt_client_instance is not None:
+        return
+    if not MQTT_BROKER_HOST:
+        mqtt_runtime_state["configured"] = False
+        return
+    if mqtt is None:
+        mqtt_runtime_state["last_error"] = "La bibliotheque paho-mqtt n'est pas installee."
+        return
+
+    try:
+        if hasattr(mqtt, "CallbackAPIVersion"):
+            mqtt_client_instance = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id="electrogpt-live-ingest")
+        else:
+            mqtt_client_instance = mqtt.Client(client_id="electrogpt-live-ingest")
+        if MQTT_USERNAME:
+            mqtt_client_instance.username_pw_set(MQTT_USERNAME, MQTT_PASSWORD or None)
+
+        def on_connect(client, userdata, flags, reason_code, properties=None):
+            code = getattr(reason_code, "value", reason_code)
+            mqtt_runtime_state["connected"] = int(code) == 0
+            if mqtt_runtime_state["connected"]:
+                mqtt_runtime_state["last_error"] = ""
+                client.subscribe(f"{MQTT_TOPIC_PREFIX}/#")
+            else:
+                mqtt_runtime_state["last_error"] = f"Echec de connexion MQTT: code {code}"
+
+        def on_disconnect(client, userdata, disconnect_flags, reason_code, properties=None):
+            mqtt_runtime_state["connected"] = False
+            code = getattr(reason_code, "value", reason_code)
+            if code not in {0, None}:
+                mqtt_runtime_state["last_error"] = f"MQTT deconnecte: code {code}"
+
+        def on_message(client, userdata, msg):
+            channel, values, metadata = _parse_mqtt_message(msg.topic, msg.payload)
+            _append_telemetry_frame(channel, "mqtt", values, metadata)
+            mqtt_runtime_state["messages_received"] = int(mqtt_runtime_state.get("messages_received", 0)) + 1
+
+        mqtt_client_instance.on_connect = on_connect
+        mqtt_client_instance.on_disconnect = on_disconnect
+        mqtt_client_instance.on_message = on_message
+        mqtt_client_instance.connect_async(MQTT_BROKER_HOST, MQTT_BROKER_PORT, MQTT_KEEPALIVE)
+        mqtt_client_instance.loop_start()
+    except Exception as exc:
+        mqtt_runtime_state["last_error"] = str(exc)
+        mqtt_client_instance = None
+
+
+def _stop_mqtt_listener() -> None:
+    global mqtt_client_instance
+
+    if mqtt_client_instance is None:
+        return
+    try:
+        mqtt_client_instance.loop_stop()
+        mqtt_client_instance.disconnect()
+    except Exception:
+        pass
+    mqtt_client_instance = None
+    mqtt_runtime_state["connected"] = False
+
+
+def _looks_like_live_connector_request(query: str) -> bool:
+    lowered_query = query.lower()
+    return any(
+        token in lowered_query
+        for token in {
+            "mqtt",
+            "modbus",
+            "websocket",
+            "web socket",
+            "plc",
+            "automate",
+            "capteur",
+            "sensor",
+            "telemetry",
+            "telemetrie",
+            "tÃ©lÃ©metrie",
+            "live data",
+            "donnees temps reel",
+            "donnÃ©es temps rÃ©el",
+        }
+    )
+
+
+def _build_live_connector_payload(query: str, base_url: str) -> dict[str, Any]:
+    ws_base = _to_ws_base_url(base_url)
+    example_channel = "atelier-ligne-1"
+    return LiveConnectorResponse(
+        status="ok",
+        source="live-connectors",
+        query=query,
+        summary=(
+            "Passerelle live prete pour capteurs, automate ou SCADA. "
+            "Tu peux pousser des donnees en HTTP ou WebSocket, lire du Modbus TCP a la demande "
+            "et brancher un broker MQTT pour ingestion automatique."
+        ),
+        dashboard_url=f"{base_url}/live-dashboard?channel={example_channel}",
+        stream_url=f"{base_url}/telemetry-stream?channel={example_channel}",
+        http_ingest_url=f"{base_url}/telemetry-ingest",
+        websocket_ingest_url_template=f"{ws_base}/ws/telemetry-ingest/{{channel}}",
+        websocket_watch_url_template=f"{ws_base}/ws/telemetry-watch/{{channel}}",
+        mqtt_status=_build_mqtt_status(),
+        modbus_example_url=(
+            f"{base_url}/modbus-read?host=192.168.1.10&port=502&unit_id=1&address=0&count=4"
+            f"&register_type=holding&channel={example_channel}"
+        ),
+        next_steps=[
+            "Creer un canal logique par machine, tableau ou sous-systeme.",
+            "Pousser les mesures via POST /telemetry-ingest ou WebSocket /ws/telemetry-ingest/{channel}.",
+            "Ouvrir /live-dashboard?channel=<canal> pour visualiser les signaux entrants.",
+            "Configurer MQTT_BROKER_HOST pour activer l'abonnement automatique au broker MQTT.",
+            "Utiliser /modbus-read pour interroger un automate ou compteur Modbus TCP.",
+        ],
+    ).model_dump()
+
+
+def _build_live_connector_brief(payload: dict[str, Any]) -> str:
+    return (
+        "Passerelle live prete. Le detail contient les URLs HTTP, WebSocket, dashboard, flux telemetry, "
+        "etat MQTT et exemple Modbus pour connecter des capteurs ou un automate."
+    )
+
+
+def _build_connector_status_payload() -> dict[str, Any]:
+    return ConnectorStatusResponse(
+        status="ok",
+        source="live-connectors",
+        mqtt=_build_mqtt_status(),
+        telemetry_channels=_get_telemetry_channels(),
+        total_points=_get_total_telemetry_points(),
+    ).model_dump()
+
+
+def _decode_modbus_register(value: int, signed: bool) -> int:
+    if not signed:
+        return value
+    return value - 65536 if value >= 32768 else value
+
+
+def _read_modbus_payload(
+    *,
+    host: str,
+    port: int,
+    unit_id: int,
+    address: int,
+    count: int,
+    register_type: str,
+    channel: str,
+    labels: list[str] | None,
+    scale: float,
+    signed: bool,
+) -> dict[str, Any]:
+    if ModbusTcpClient is None:
+        return ModbusReadResponse(
+            status="error",
+            source="modbus",
+            host=host,
+            port=port,
+            unit_id=unit_id,
+            register_type=register_type,
+            address=address,
+            count=count,
+            channel=channel,
+            values={},
+            frame=None,
+            error="La bibliotheque pymodbus n'est pas installee.",
+        ).model_dump()
+
+    if not host or port <= 0 or count <= 0:
+        return ModbusReadResponse(
+            status="error",
+            source="modbus",
+            host=host,
+            port=port,
+            unit_id=unit_id,
+            register_type=register_type,
+            address=address,
+            count=count,
+            channel=channel,
+            values={},
+            frame=None,
+            error="Parametres Modbus invalides.",
+        ).model_dump()
+
+    safe_channel = _sanitize_channel_name(channel or f"modbus-{host}-{unit_id}")
+    client = ModbusTcpClient(host=host, port=port)
+    try:
+        if not client.connect():
+            return ModbusReadResponse(
+                status="error",
+                source="modbus",
+                host=host,
+                port=port,
+                unit_id=unit_id,
+                register_type=register_type,
+                address=address,
+                count=count,
+                channel=safe_channel,
+                values={},
+                frame=None,
+                error="Connexion Modbus TCP impossible.",
+            ).model_dump()
+
+        if register_type == "input":
+            result = client.read_input_registers(address=address, count=count, slave=unit_id)
+        else:
+            result = client.read_holding_registers(address=address, count=count, slave=unit_id)
+
+        if result is None or result.isError():
+            return ModbusReadResponse(
+                status="error",
+                source="modbus",
+                host=host,
+                port=port,
+                unit_id=unit_id,
+                register_type=register_type,
+                address=address,
+                count=count,
+                channel=safe_channel,
+                values={},
+                frame=None,
+                error="Lecture Modbus invalide ou incomplete.",
+            ).model_dump()
+
+        raw_registers = getattr(result, "registers", [])
+        labels = labels or []
+        values = {}
+        for index, register in enumerate(raw_registers):
+            key = labels[index] if index < len(labels) and labels[index] else f"register_{address + index}"
+            values[_sanitize_signal_name(key)] = _round_float(_decode_modbus_register(int(register), signed) * scale)
+
+        frame = _append_telemetry_frame(
+            safe_channel,
+            "modbus",
+            values,
+            {
+                "host": host,
+                "port": port,
+                "unit_id": unit_id,
+                "register_type": register_type,
+                "address": address,
+                "count": count,
+            },
+        )
+        return ModbusReadResponse(
+            status="ok",
+            source="modbus",
+            host=host,
+            port=port,
+            unit_id=unit_id,
+            register_type=register_type,
+            address=address,
+            count=count,
+            channel=safe_channel,
+            values=values,
+            frame=TelemetryFrame(**frame),
+            error="",
+        ).model_dump()
+    except Exception as exc:
+        return ModbusReadResponse(
+            status="error",
+            source="modbus",
+            host=host,
+            port=port,
+            unit_id=unit_id,
+            register_type=register_type,
+            address=address,
+            count=count,
+            channel=safe_channel,
+            values={},
+            frame=None,
+            error=str(exc),
+        ).model_dump()
+    finally:
+        try:
+            client.close()
+        except Exception:
+            pass
 
 def _extract_named_float(query: str, aliases: list[str]) -> float | None:
     for alias in aliases:
@@ -1115,6 +1718,489 @@ def _build_thesis_workflow_payload(query: str) -> dict[str, Any]:
     ).model_dump()
 
 
+def _looks_like_diagnosis_request(query: str) -> bool:
+    lowered_query = query.lower()
+    if _contains_any(lowered_query, RESEARCH_KEYWORDS | ACADEMIC_HINTS):
+        return False
+    return _contains_any(lowered_query, DIAGNOSIS_HINTS) or bool(
+        re.search(r"\bwhy\b|\bpourquoi\b|\broot cause\b|\bwhat is causing\b", lowered_query)
+    )
+
+
+def _looks_like_simulation_request(query: str) -> bool:
+    lowered_query = query.lower()
+    explicit_hints = {"simulate", "simulation", "simuler", "simu", "transient", "step response"}
+    if _contains_any(lowered_query, explicit_hints) and re.search(
+        r"\brc\b|\brl\b|\brlc\b|capacitor|capacitive|inductor|inductive|transformer|transfo|three phase|three-phase|triphas|dc motor|motor dc|moteur dc|back emf",
+        lowered_query,
+    ):
+        return True
+    if re.search(r"\bcharge\b|\bdischarge\b", lowered_query) and re.search(r"\brc\b|capacitor|capacitive", lowered_query):
+        return True
+    if re.search(r"\bdecay\b|\benergize\b", lowered_query) and re.search(r"\brl\b|inductor|inductive", lowered_query):
+        return True
+    return False
+
+
+def _looks_like_realtime_request(query: str) -> bool:
+    lowered_query = query.lower()
+    return _contains_any(lowered_query, REALTIME_HINTS) and bool(
+        re.search(
+            r"\brc\b|\brl\b|\brlc\b|capacitor|inductor|transformer|transfo|three phase|three-phase|triphas|dc motor|motor dc|moteur dc|simulation|simulate",
+            lowered_query,
+        )
+    )
+
+
+def _infer_engineering_domain(query: str) -> tuple[str, str]:
+    lowered_query = query.lower()
+    if any(term in lowered_query for term in {"transformer", "transfo", "substation", "relay", "relais", "protection", "triphas", "three phase", "feeder", "distribution", "busbar", "cable", "line", "ligne"}):
+        return "electrotechnique", "power-systems"
+    if any(term in lowered_query for term in {"motor", "moteur", "drive", "machine", "machines"}):
+        return "electrotechnique", "machines-and-drives"
+    if any(term in lowered_query for term in {"converter", "onduleur", "inverter", "rectifier", "power electronics", "harmonic", "harmonique"}):
+        return "electrotechnique", "power-electronics"
+    if any(term in lowered_query for term in {"automation", "automate", "control", "commande", "pid", "oscillation", "unstable"}):
+        return "ingenierie", "control-and-automation"
+    if any(term in lowered_query for term in {"thermal", "temperature", "overheat", "surchauffe", "cooling"}):
+        return "ingenierie", "thermal-systems"
+    return "ingenierie", "general-engineering"
+
+
+def _infer_diagnosis_severity(query: str) -> str:
+    lowered_query = query.lower()
+    if any(term in lowered_query for term in {"burn", "smoke", "fire", "court-circuit", "short circuit", "arc", "trip", "declenche", "dÃ©clenche"}):
+        return "critical"
+    if any(term in lowered_query for term in {"overheat", "surchauffe", "chauffe", "instable", "unstable", "failure", "panne"}):
+        return "high"
+    if any(term in lowered_query for term in {"voltage drop", "chute de tension", "loss", "losses", "vibration"}):
+        return "medium"
+    return "normal"
+
+
+def _build_engineering_diagnosis_payload(query: str) -> dict[str, Any]:
+    normalized_query = _normalize_text(query)
+    domain, system_family = _infer_engineering_domain(normalized_query)
+    severity = _infer_diagnosis_severity(normalized_query)
+
+    probable_causes = [
+        "Parametres nominaux ou conditions reelles d'exploitation mal identifies.",
+        "Mesures insuffisantes ou absence de comparaison entre theorie, simulation et terrain.",
+        "Interaction non prise en compte entre charge, alimentation, commande et protections.",
+    ]
+    quick_checks = [
+        "Verifier les conditions de securite avant toute mesure ou remise sous tension.",
+        "Confirmer les valeurs nominales, le schema de raccordement et le regime de fonctionnement reel.",
+        "Comparer symptomes observes, instant d'apparition et conditions de charge.",
+        "Isoler si possible le sous-systeme en cause avant d'aller vers une analyse detaillee.",
+    ]
+    measurements_to_take = [
+        "Mesurer tensions, courants, puissance active/reactive et temperature aux points critiques.",
+        "Verifier la chronologie du defaut: demarrage, regime etabli, surcharge, transitoire ou declenchement.",
+        "Comparer les mesures reelles aux grandeurs nominales et au modele attendu.",
+        "Tracer ou enregistrer les signaux cles si le phenomene est evolutif dans le temps.",
+    ]
+    equations_to_check = [
+        "Bilans de puissance et rendement global du systeme.",
+        "Relations tension-courant-impedance et chutes de tension sur les elements dominants.",
+        "Constantes de temps, energie stockee et marges thermiques ou dynamiques.",
+        "Conditions de stabilite, facteur de puissance ou selectivite selon le type de systeme.",
+    ]
+    recommended_tools = [
+        "Multimetre, pince amperemetrique et analyseur reseau selon le cas.",
+        "Oscilloscope ou acquisition de donnees pour les transitoires.",
+        "Simulation avec /simulate ou /simulate-plot pour confronter le modele au terrain.",
+        "Recherche d'articles et de standards avec /gpt-tool ou /arxiv pour la partie documentaire.",
+    ]
+    simulation_candidates = [
+        "Simuler le sous-systeme principal avec les parametres reels ou estimes.",
+        "Faire varier la charge, les pertes ou les parametres de commande pour tester la sensibilite.",
+        "Comparer un cas nominal, un cas degrade et un cas corrige.",
+    ]
+    action_plan = [
+        "1. Qualifier clairement le symptome et le contexte d'apparition.",
+        "2. Relever les mesures minimales avant toute hypothese forte.",
+        "3. Construire 2 a 4 causes probables et les classer par plausibilite.",
+        "4. Tester chaque hypothese par mesure, calcul ou simulation.",
+        "5. Valider la cause racine, proposer une correction, puis verifier apres action.",
+    ]
+    visual_support = [
+        "Courbes temporelles de tension, courant, vitesse ou energie.",
+        "Comparaison avant/apres correction sur les grandeurs critiques.",
+        "Graphiques de pertes, rendement ou regulation si le probleme est energetique.",
+        "Schema fonctionnel simplifie du systeme et des points de mesure.",
+    ]
+    escalation_note = (
+        "Si le symptome implique echauffement anormal, declenchements repetes, odeur de brule, court-circuit ou risque humain, "
+        "l'analyse doit rester conservative: securiser, isoler, mesurer puis seulement reenergiser."
+    )
+
+    lowered_query = normalized_query.lower()
+    if system_family == "power-systems":
+        probable_causes = [
+            "Mauvais reglage de protection, selectivite insuffisante ou seuils mal calibres.",
+            "Surcharge, chute de tension, desequilibre de phases ou facteur de puissance degrade.",
+            "Vieillissement du materiel, pertes excessives ou echauffement localise.",
+        ]
+        equations_to_check = [
+            "Bilans P, Q, S et cos phi.",
+            "Rapport de transformation, regulation et rendement si un transformateur est implique.",
+            "Chute de tension, courant de charge et coordination des protections.",
+        ]
+    elif system_family == "machines-and-drives":
+        probable_causes = [
+            "Charge mecanique excessive ou couple resistant sous-estime.",
+            "Commande inadapt ee, back-EMF mal prise en compte ou saturation.",
+            "Echauffement, pertes cuivre/fer ou frottements anormaux.",
+        ]
+        equations_to_check = [
+            "Equations electromechaniques courant-couple-vitesse.",
+            "Constantes de temps electrique et mecanique.",
+            "Bilan de puissance et rendement du moteur.",
+        ]
+    elif system_family == "power-electronics":
+        probable_causes = [
+            "Commutation, filtrage ou commande insuffisamment maitrises.",
+            "Harmoniques, surintensites ou surtensions transitoires.",
+            "Mauvais dimensionnement thermique ou magnetique des composants.",
+        ]
+        equations_to_check = [
+            "Rapports cycliques, ondulation, pertes de conduction et de commutation.",
+            "Equilibres courant-tension sur les etages de conversion.",
+            "Contraintes thermiques et rendement global.",
+        ]
+
+    return EngineeringDiagnosisResponse(
+        status="ok",
+        source="engineering-diagnosis",
+        query=query,
+        normalized_query=normalized_query,
+        domain=domain,
+        system_family=system_family,
+        severity=severity,
+        symptom_summary=(
+            f"Analyse preliminaire d'un probleme dans le domaine {domain} ({system_family}). "
+            "La demarche recommande de partir des symptomes observables, de consolider les mesures, "
+            "puis de valider la cause racine par calcul, simulation ou comparaison documentaire."
+        ),
+        probable_causes=probable_causes,
+        quick_checks=quick_checks,
+        measurements_to_take=measurements_to_take,
+        equations_to_check=equations_to_check,
+        recommended_tools=recommended_tools,
+        simulation_candidates=simulation_candidates,
+        action_plan=action_plan,
+        visual_support=visual_support,
+        escalation_note=escalation_note,
+    ).model_dump()
+
+
+def _build_diagnosis_brief(payload: dict[str, Any]) -> str:
+    return (
+        f"Diagnostic structure pret pour un probleme de type {payload.get('system_family', 'engineering')}. "
+        f"Severite estimee: {payload.get('severity', 'normal')}. "
+        "Le detail contient causes probables, mesures a prendre, equations a verifier, plan d'action et supports visuels recommandes."
+    )
+
+
+def _labelize_signal(signal_name: str) -> str:
+    return signal_name.replace("_", " ").replace(" v", " V").replace(" a", " A").replace(" rpm", " RPM").title()
+
+
+def _guess_plot_signals(payload: dict[str, Any]) -> list[str]:
+    kind = payload.get("kind", "")
+    if kind == "rc":
+        return ["capacitor_voltage_v", "resistor_current_a"]
+    if kind == "rl":
+        return ["inductor_current_a", "inductor_voltage_v"]
+    if kind == "rlc":
+        return ["capacitor_voltage_v", "resistor_current_a", "inductor_voltage_v"]
+    if kind == "dc-motor":
+        return ["speed_rpm", "armature_current_a", "torque_nm"]
+    if kind == "three-phase":
+        return ["active_power_w", "reactive_power_var", "apparent_power_va"]
+    if kind == "transformer":
+        return ["output_power_w", "total_losses_w", "loaded_secondary_voltage_v"]
+    return []
+
+
+def _extract_signal_series(payload: dict[str, Any], signal_name: str) -> list[tuple[float, float]]:
+    points = []
+    for item in payload.get("series", []):
+        if not isinstance(item, dict):
+            continue
+        time_s = float(item.get("time_s", 0.0))
+        value = item.get(signal_name)
+        if value is None and isinstance(item.get("signals"), dict):
+            value = item["signals"].get(signal_name)
+        if isinstance(value, (int, float)):
+            points.append((time_s, float(value)))
+    return points
+
+
+def _build_simulation_visualizations(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    if payload.get("status") != "ok":
+        return []
+    query = payload.get("query", "")
+    encoded_query = urlencode({"input": query})
+    all_signals = _guess_plot_signals(payload)
+    if not all_signals:
+        return []
+    first_group = ",".join(all_signals[: min(3, len(all_signals))])
+    assets = [
+        VisualizationAsset(
+            title=f"Dashboard temps reel {payload.get('kind', 'simulation')}",
+            kind="dashboard",
+            format="html",
+            url=f"{DEFAULT_PUBLIC_BASE_URL}/realtime-dashboard?{encoded_query}",
+            description="Dashboard web avec streaming progressif des points de simulation.",
+            signals=all_signals[: min(3, len(all_signals))],
+        ).model_dump(),
+        VisualizationAsset(
+            title=f"Courbe principale {payload.get('kind', 'simulation')}",
+            kind="svg-plot",
+            format="svg",
+            url=f"{DEFAULT_PUBLIC_BASE_URL}/simulate-plot?{encoded_query}&signals={first_group}",
+            description="Visualisation SVG directe exploitable dans un navigateur ou une interface externe.",
+            signals=all_signals[: min(3, len(all_signals))],
+        ).model_dump()
+    ]
+    if len(all_signals) > 1:
+        assets.append(
+            VisualizationAsset(
+                title=f"Courbe focalisee {payload.get('kind', 'simulation')}",
+                kind="svg-plot",
+                format="svg",
+                url=f"{DEFAULT_PUBLIC_BASE_URL}/simulate-plot?{encoded_query}&signals={all_signals[0]}",
+                description="Version resserree sur le signal principal pour lecture rapide.",
+                signals=[all_signals[0]],
+            ).model_dump()
+        )
+    return assets
+
+
+def _build_simulation_streaming(payload: dict[str, Any], pace_ms: int = 120) -> dict[str, Any]:
+    query = payload.get("query", "")
+    encoded_query = urlencode({"input": query})
+    recommended_signals = _guess_plot_signals(payload)
+    signal_suffix = ""
+    if recommended_signals:
+        signal_suffix = "&signals=" + ",".join(recommended_signals[: min(3, len(recommended_signals))])
+    return {
+        "supported": payload.get("status") == "ok",
+        "dashboard_url": f"{DEFAULT_PUBLIC_BASE_URL}/realtime-dashboard?{encoded_query}",
+        "stream_url": f"{DEFAULT_PUBLIC_BASE_URL}/simulate-stream?{encoded_query}&pace_ms={pace_ms}{signal_suffix}",
+        "recommended_signals": recommended_signals,
+        "pace_ms": pace_ms,
+    }
+
+
+def _build_simulation_interpretation(payload: dict[str, Any]) -> list[str]:
+    kind = payload.get("kind", "")
+    metrics = payload.get("metrics", {})
+    summary = []
+    if kind == "rc":
+        summary.append(f"La dynamique est gouvernee par la constante de temps tau={metrics.get('tau_s', 'n/a')} s.")
+        summary.append("La tension du condensateur converge asymptotiquement vers la valeur de forçage.")
+    elif kind == "rl":
+        summary.append(f"Le courant suit une dynamique du premier ordre avec tau={metrics.get('tau_s', 'n/a')} s.")
+        summary.append("La tension de l'inductance est maximale au debut puis decroit vers zero en regime etabli.")
+    elif kind == "rlc":
+        summary.append(f"Le regime detecte est {metrics.get('regime', 'n/a')} avec un amortissement {metrics.get('damping_ratio', 'n/a')}.")
+        summary.append("La lecture de la courbe permet d'identifier depassement, oscillation et temps d'extinction.")
+    elif kind == "transformer":
+        summary.append(f"Le rendement estime est {metrics.get('efficiency_pct', 'n/a')} % au point de charge considere.")
+        summary.append("Le graphe met en evidence la part relative des pertes et l'effet de regulation sur la tension secondaire.")
+    elif kind == "three-phase":
+        summary.append("La visualisation compare puissance active, reactive et apparente pour faciliter la lecture du cos phi.")
+        summary.append("Un desequilibre ou une baisse de facteur de puissance devient plus visible sous forme graphique.")
+    elif kind == "dc-motor":
+        summary.append("Les courbes montrent la montee de vitesse, l'appel de courant et la stabilisation du couple.")
+        summary.append("La comparaison vitesse-courant aide a distinguer surcharge mecanique et probleme de commande.")
+    return summary
+
+
+def _finalize_simulation_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    if payload.get("status") != "ok":
+        payload.setdefault("interpretation", [])
+        payload.setdefault("visualizations", [])
+        payload.setdefault("streaming", {})
+        return payload
+    payload["interpretation"] = _build_simulation_interpretation(payload)
+    payload["visualizations"] = _build_simulation_visualizations(payload)
+    payload["streaming"] = _build_simulation_streaming(payload)
+    return payload
+
+
+def _format_sse_event(event_name: str, data: dict[str, Any]) -> str:
+    return f"event: {event_name}\ndata: {json.dumps(data)}\n\n"
+
+
+def _build_realtime_dashboard_payload(query: str, pace_ms: int = 120) -> dict[str, Any]:
+    simulation_payload = _simulate_from_query(query)
+    if simulation_payload.get("status") != "ok":
+        return RealtimeSimulationResponse(
+            status="error",
+            source="realtime-dashboard",
+            query=query,
+            summary=simulation_payload.get("summary", "La simulation n'a pas pu etre preparee pour le streaming."),
+            dashboard_url="",
+            stream_url="",
+            recommended_signals=[],
+            pace_ms=pace_ms,
+            simulation=simulation_payload,
+        ).model_dump()
+
+    streaming = simulation_payload.get("streaming", {})
+    return RealtimeSimulationResponse(
+        status="ok",
+        source="realtime-dashboard",
+        query=query,
+        summary=(
+            "Dashboard temps reel pret. Utilise le dashboard pour lancer le streaming progressif des points "
+            "et observer la courbe se construire a l'ecran."
+        ),
+        dashboard_url=streaming.get("dashboard_url", ""),
+        stream_url=streaming.get("stream_url", ""),
+        recommended_signals=streaming.get("recommended_signals", []),
+        pace_ms=streaming.get("pace_ms", pace_ms),
+        simulation=simulation_payload,
+    ).model_dump()
+
+
+def _build_svg_line_chart(payload: dict[str, Any], requested_signals: list[str]) -> str:
+    available_signals = [signal for signal in requested_signals if _extract_signal_series(payload, signal)]
+    if not available_signals:
+        available_signals = [signal for signal in _guess_plot_signals(payload) if _extract_signal_series(payload, signal)]
+    if not available_signals:
+        raise HTTPException(status_code=404, detail="Aucun signal exploitable n'est disponible pour cette simulation.")
+
+    width = 1040
+    height = 620
+    margin_left = 90
+    margin_right = 40
+    margin_top = 70
+    margin_bottom = 90
+    plot_width = width - margin_left - margin_right
+    plot_height = height - margin_top - margin_bottom
+    palette = ["#006d77", "#d62828", "#3a86ff", "#f4a261", "#6a994e"]
+
+    all_points = []
+    for signal in available_signals:
+        all_points.extend(_extract_signal_series(payload, signal))
+    min_x = min(point[0] for point in all_points)
+    max_x = max(point[0] for point in all_points)
+    min_y = min(point[1] for point in all_points)
+    max_y = max(point[1] for point in all_points)
+    if math.isclose(max_x, min_x):
+        max_x = min_x + 1.0
+    if math.isclose(max_y, min_y):
+        delta = 1.0 if abs(max_y) < 1e-9 else abs(max_y) * 0.1
+        min_y -= delta
+        max_y += delta
+
+    def scale_x(value: float) -> float:
+        return margin_left + ((value - min_x) / (max_x - min_x)) * plot_width
+
+    def scale_y(value: float) -> float:
+        return margin_top + (1.0 - ((value - min_y) / (max_y - min_y))) * plot_height
+
+    x_grid = []
+    y_grid = []
+    for index in range(6):
+        x_value = min_x + (max_x - min_x) * index / 5.0
+        x_pos = scale_x(x_value)
+        x_grid.append(
+            f"<line x1='{x_pos:.2f}' y1='{margin_top}' x2='{x_pos:.2f}' y2='{margin_top + plot_height}' stroke='#d9d9d9' stroke-width='1' />"
+            f"<text x='{x_pos:.2f}' y='{height - 45}' text-anchor='middle' font-size='14' fill='#334'>{_round_float(x_value)}</text>"
+        )
+        y_value = min_y + (max_y - min_y) * index / 5.0
+        y_pos = scale_y(y_value)
+        y_grid.append(
+            f"<line x1='{margin_left}' y1='{y_pos:.2f}' x2='{margin_left + plot_width}' y2='{y_pos:.2f}' stroke='#e9e9e9' stroke-width='1' />"
+            f"<text x='{margin_left - 12}' y='{y_pos + 5:.2f}' text-anchor='end' font-size='14' fill='#334'>{_round_float(y_value)}</text>"
+        )
+
+    series_paths = []
+    legend_entries = []
+    for index, signal in enumerate(available_signals):
+        color = palette[index % len(palette)]
+        signal_points = _extract_signal_series(payload, signal)
+        polyline_points = " ".join(f"{scale_x(x):.2f},{scale_y(y):.2f}" for x, y in signal_points)
+        series_paths.append(
+            f"<polyline fill='none' stroke='{color}' stroke-width='3' points='{polyline_points}' />"
+        )
+        legend_y = 28 + index * 24
+        legend_entries.append(
+            f"<rect x='{width - 300}' y='{legend_y - 12}' width='18' height='6' fill='{color}' />"
+            f"<text x='{width - 275}' y='{legend_y}' font-size='14' fill='#223'>{html.escape(_labelize_signal(signal))}</text>"
+        )
+
+    title = html.escape(f"Simulation {payload.get('kind', 'engineering')} - visualisation")
+    subtitle = html.escape(payload.get("summary", ""))
+    return (
+        f"<svg xmlns='http://www.w3.org/2000/svg' width='{width}' height='{height}' viewBox='0 0 {width} {height}'>"
+        "<rect width='100%' height='100%' fill='#f8fbfd' />"
+        f"<text x='{margin_left}' y='32' font-size='24' font-weight='700' fill='#0b1f33'>{title}</text>"
+        f"<text x='{margin_left}' y='54' font-size='14' fill='#4f5d75'>{subtitle}</text>"
+        f"{''.join(x_grid)}{''.join(y_grid)}"
+        f"<line x1='{margin_left}' y1='{margin_top + plot_height}' x2='{margin_left + plot_width}' y2='{margin_top + plot_height}' stroke='#222' stroke-width='2' />"
+        f"<line x1='{margin_left}' y1='{margin_top}' x2='{margin_left}' y2='{margin_top + plot_height}' stroke='#222' stroke-width='2' />"
+        f"{''.join(series_paths)}"
+        f"{''.join(legend_entries)}"
+        f"<text x='{margin_left + plot_width / 2:.2f}' y='{height - 15}' text-anchor='middle' font-size='15' fill='#223'>Temps (s)</text>"
+        f"<text x='28' y='{margin_top + plot_height / 2:.2f}' text-anchor='middle' font-size='15' fill='#223' transform='rotate(-90 28 {margin_top + plot_height / 2:.2f})'>Amplitude</text>"
+        "</svg>"
+    )
+
+
+def _build_svg_metric_bars(payload: dict[str, Any], requested_signals: list[str]) -> str:
+    metrics = payload.get("metrics", {})
+    if not isinstance(metrics, dict) or not metrics:
+        raise HTTPException(status_code=404, detail="Aucune metrique exploitable n'est disponible pour cette simulation.")
+    selected_items = []
+    for key, value in metrics.items():
+        if isinstance(value, (int, float)):
+            if requested_signals and key not in requested_signals:
+                continue
+            selected_items.append((key, float(value)))
+    if not selected_items:
+        selected_items = [(key, float(value)) for key, value in metrics.items() if isinstance(value, (int, float))]
+    selected_items = selected_items[:6]
+    if not selected_items:
+        raise HTTPException(status_code=404, detail="Aucune metrique numerique n'est disponible pour cette simulation.")
+
+    width = 1040
+    height = 620
+    left = 280
+    top = 120
+    bar_height = 42
+    gap = 26
+    usable_width = 620
+    max_value = max(abs(value) for _, value in selected_items) or 1.0
+    bars = []
+    labels = []
+    values = []
+    for index, (name, value) in enumerate(selected_items):
+        y = top + index * (bar_height + gap)
+        scaled = (abs(value) / max_value) * usable_width
+        color = "#006d77" if value >= 0 else "#d62828"
+        bars.append(f"<rect x='{left}' y='{y}' width='{scaled:.2f}' height='{bar_height}' rx='8' fill='{color}' />")
+        labels.append(f"<text x='{left - 16}' y='{y + 27}' text-anchor='end' font-size='16' fill='#223'>{html.escape(_labelize_signal(name))}</text>")
+        values.append(f"<text x='{left + scaled + 12:.2f}' y='{y + 27}' font-size='15' fill='#223'>{_round_float(value)}</text>")
+
+    title = html.escape(f"Simulation {payload.get('kind', 'engineering')} - tableau visuel")
+    subtitle = html.escape(payload.get("summary", ""))
+    return (
+        f"<svg xmlns='http://www.w3.org/2000/svg' width='{width}' height='{height}' viewBox='0 0 {width} {height}'>"
+        "<rect width='100%' height='100%' fill='#f8fbfd' />"
+        f"<text x='70' y='42' font-size='24' font-weight='700' fill='#0b1f33'>{title}</text>"
+        f"<text x='70' y='68' font-size='14' fill='#4f5d75'>{subtitle}</text>"
+        f"{''.join(bars)}{''.join(labels)}{''.join(values)}"
+        "<text x='70' y='560' font-size='14' fill='#4f5d75'>Les barres facilitent la lecture des grandeurs de regime etabli ou des indicateurs de performance.</text>"
+        "</svg>"
+    )
+
 def _is_math_expression(query: str) -> bool:
     compact = query.replace(" ", "")
     return bool(re.search(r"\d", query) and re.search(r"[\+\-\*/\^=()]", compact))
@@ -1141,6 +2227,10 @@ def _build_simulation_error(query: str, kind: str, message: str) -> dict[str, An
         query=query,
         summary=message,
         parameters={},
+        metrics={},
+        interpretation=[],
+        visualizations=[],
+        streaming={},
         count=0,
         series=[],
     ).model_dump()
@@ -1711,13 +2801,13 @@ def _simulate_from_query(query: str, steps_default: int = 80) -> dict[str, Any]:
     steps = _extract_named_int(lowered_query, ["steps", "points"]) or steps_default
 
     if kind == "three-phase":
-        return _simulate_three_phase(query)
+        return _finalize_simulation_payload(_simulate_three_phase(query))
 
     if kind == "transformer":
-        return _simulate_transformer(query)
+        return _finalize_simulation_payload(_simulate_transformer(query))
 
     if kind == "dc-motor":
-        return _simulate_dc_motor(query, steps_default=max(steps_default, 120))
+        return _finalize_simulation_payload(_simulate_dc_motor(query, steps_default=max(steps_default, 120)))
 
     if kind == "rlc":
         inductance_h = _extract_named_float(lowered_query, ["l", "ind", "inductance"])
@@ -1731,17 +2821,19 @@ def _simulate_from_query(query: str, steps_default: int = 80) -> dict[str, Any]:
                 "rlc",
                 "Simulation RLC incomplete. Fournis au minimum r, l et c, par exemple: simulate rlc r=10 l=0.05 c=0.0001 v=24 t=1",
             )
-        return _simulate_rlc(
-            query,
-            resistance_ohms,
-            inductance_h,
-            capacitance_f,
-            source_voltage_v,
-            duration_s,
-            steps,
-            simulation_mode,
-            initial_voltage_v,
-            initial_current_a,
+        return _finalize_simulation_payload(
+            _simulate_rlc(
+                query,
+                resistance_ohms,
+                inductance_h,
+                capacitance_f,
+                source_voltage_v,
+                duration_s,
+                steps,
+                simulation_mode,
+                initial_voltage_v,
+                initial_current_a,
+            )
         )
 
     if kind == "rc":
@@ -1750,14 +2842,18 @@ def _simulate_from_query(query: str, steps_default: int = 80) -> dict[str, Any]:
         simulation_mode = "discharge" if "discharge" in lowered_query else "charge"
         if resistance_ohms is None or capacitance_f is None:
             return _build_simulation_error(query, "rc", "Simulation RC incomplete. Fournis au minimum r et c, par exemple: simulate rc r=1000 c=0.001 v=5 t=5")
-        return _simulate_rc(query, resistance_ohms, capacitance_f, source_voltage_v, duration_s, steps, simulation_mode, initial_voltage_v)
+        return _finalize_simulation_payload(
+            _simulate_rc(query, resistance_ohms, capacitance_f, source_voltage_v, duration_s, steps, simulation_mode, initial_voltage_v)
+        )
 
     inductance_h = _extract_named_float(lowered_query, ["l", "ind", "inductance"])
     initial_current_a = _extract_named_float(lowered_query, ["i0", "initial_current"])
     simulation_mode = "decay" if "decay" in lowered_query else "energize"
     if resistance_ohms is None or inductance_h is None:
         return _build_simulation_error(query, "rl", "Simulation RL incomplete. Fournis au minimum r et l, par exemple: simulate rl r=10 l=0.2 v=24 t=1")
-    return _simulate_rl(query, resistance_ohms, inductance_h, source_voltage_v, duration_s, steps, simulation_mode, initial_current_a)
+    return _finalize_simulation_payload(
+        _simulate_rl(query, resistance_ohms, inductance_h, source_voltage_v, duration_s, steps, simulation_mode, initial_current_a)
+    )
 
 
 def _score_result_relevance(result: dict[str, Any], query_keywords: list[str]) -> tuple[int, int]:
@@ -1806,10 +2902,13 @@ def _apply_arxiv_domain_filter(query: str, auto_filter: bool) -> tuple[str, bool
 def _decide_smart_route(query: str) -> tuple[str, str]:
     lowered_query = query.lower()
 
-    if _contains_any(lowered_query, SIMULATION_HINTS) and re.search(
-        r"\brc\b|\brl\b|\brlc\b|capacitor|capacitive|inductor|inductive|transformer|transfo|three phase|three-phase|triphas|dc motor|motor dc|moteur dc|back emf",
-        lowered_query,
-    ):
+    if _looks_like_live_connector_request(query):
+        return "live", "Question detectee comme demande de connexion live capteurs, MQTT, Modbus, WebSocket ou automate."
+
+    if _looks_like_realtime_request(query):
+        return "realtime", "Question detectee comme demande de dashboard ou de streaming temps reel pour une simulation."
+
+    if _looks_like_simulation_request(query):
         return "simulation", "Question detectee comme demande de simulation electrotechnique."
 
     if re.search(
@@ -1817,6 +2916,9 @@ def _decide_smart_route(query: str) -> tuple[str, str]:
         lowered_query,
     ) and re.search(r"\d|=", lowered_query):
         return "simulation", "Question detectee comme demande de simulation electrotechnique."
+
+    if _looks_like_diagnosis_request(query):
+        return "diagnosis", "Question detectee comme probleme d'ingenierie ou demande de diagnostic structure."
 
     if _is_math_expression(query) or _contains_any(lowered_query, CALCULATION_HINTS):
         return "wolfram", "Question detectee comme calcul, formule ou evaluation mathematique."
@@ -1898,6 +3000,15 @@ def _build_redirect_path(mode: str, query: str, max_results: int, auto_filter: b
     if mode == "simulation":
         return f"/simulate?{urlencode({'input': query})}"
 
+    if mode == "realtime":
+        return f"/realtime-simulation?{urlencode({'input': query})}"
+
+    if mode == "live":
+        return f"/live-connectors?{urlencode({'input': query})}"
+
+    if mode == "diagnosis":
+        return f"/engineering-diagnosis?{urlencode({'input': query})}"
+
     if mode == "thesis":
         return f"/thesis-workflow?{urlencode({'input': query})}"
 
@@ -1948,11 +3059,26 @@ def _build_thesis_workflow_brief(payload: dict[str, Any]) -> str:
     )
 
 
+def _build_realtime_brief(payload: dict[str, Any]) -> str:
+    return (
+        "Mode temps reel pret. Le detail contient un dashboard web, un flux de streaming SSE et la simulation de base "
+        "pour visualiser l'evolution du systeme directement dans un navigateur."
+    )
+
+
+def _build_live_brief(payload: dict[str, Any]) -> str:
+    return (
+        "Connecteurs live prets. Le detail contient les endpoints HTTP, WebSocket, telemetry stream, dashboard live, "
+        "etat MQTT et un exemple de lecture Modbus TCP."
+    )
+
+
 def _build_direct_response(query: str) -> str:
     return (
         f"Aucune API externe n'est necessaire pour cette question: '{query}'. "
         "Le GPT peut repondre directement. Pour declencher une recherche scientifique, utilise des mots comme "
-        "'paper', 'research' ou 'article'. Pour un calcul, utilise 'calculate', 'solve' ou une expression mathematique."
+        "'paper', 'research' ou 'article'. Pour un calcul, utilise 'calculate', 'solve' ou une expression mathematique. "
+        "Pour un diagnostic, formule le symptome, le contexte, les mesures disponibles et le systeme concerne."
     )
 
 
@@ -2030,6 +3156,43 @@ def _build_gpt_tool_results(mode: str, data: dict[str, Any], fallback_answer: st
             ).model_dump()
         ]
 
+    if mode == "realtime":
+        return [
+            GptToolResult(
+                title="Dashboard Temps Reel",
+                snippet=data.get("summary", fallback_answer),
+                link=data.get("dashboard_url", ""),
+                published="",
+                authors=[],
+                provider=data.get("source", "realtime-dashboard"),
+            ).model_dump()
+        ]
+
+    if mode == "live":
+        return [
+            GptToolResult(
+                title="Dashboard Live",
+                snippet=data.get("summary", fallback_answer),
+                link=data.get("dashboard_url", ""),
+                published="",
+                authors=[],
+                provider=data.get("source", "live-connectors"),
+            ).model_dump()
+        ]
+
+    if mode == "diagnosis":
+        return [
+            GptToolResult(
+                title=cause,
+                snippet=data.get("symptom_summary", fallback_answer),
+                link="",
+                published="",
+                authors=[],
+                provider=data.get("source", "engineering-diagnosis"),
+            ).model_dump()
+            for cause in data.get("probable_causes", [])[:3]
+        ]
+
     if mode == "thesis":
         return [
             GptToolResult(
@@ -2068,6 +3231,15 @@ def _to_gpt_tool_response(smart_payload: dict[str, Any]) -> dict[str, Any]:
     if mode == "arxiv":
         source = data.get("provider") or data.get("source") or "arxiv"
         query_used = data.get("effective_query") or smart_payload.get("normalized_input") or smart_payload.get("input", "")
+    elif mode == "live":
+        source = data.get("source", "live-connectors")
+        query_used = data.get("query") or smart_payload.get("normalized_input") or smart_payload.get("input", "")
+    elif mode == "realtime":
+        source = data.get("source", "realtime-dashboard")
+        query_used = data.get("query") or smart_payload.get("normalized_input") or smart_payload.get("input", "")
+    elif mode == "diagnosis":
+        source = data.get("source", "engineering-diagnosis")
+        query_used = data.get("normalized_query") or smart_payload.get("normalized_input") or smart_payload.get("input", "")
     elif mode == "thesis":
         source = data.get("source", "thesis-workflow")
         query_used = data.get("normalized_query") or smart_payload.get("normalized_input") or smart_payload.get("input", "")
@@ -2113,7 +3285,7 @@ def _build_chatgpt_action_openapi(server_url: str) -> dict[str, Any]:
     full_spec["openapi"] = "3.1.0"
     full_spec["info"] = {
         "title": "Electrotechnique GPT Action API",
-        "description": "Minimal OpenAPI schema expose uniquement l'endpoint /gpt-tool pour ChatGPT Actions, avec calcul, simulation, recherche technique et workflow academique.",
+        "description": "Minimal OpenAPI schema expose uniquement l'endpoint /gpt-tool pour ChatGPT Actions, avec calcul, simulation, dashboard temps reel, visualisation, ingestion live capteurs/automates, diagnostic d'ingenierie, recherche technique et workflow academique.",
         "version": app.version,
     }
     full_spec["servers"] = [
@@ -2134,10 +3306,12 @@ def _build_ai_plugin_manifest(base_url: str) -> dict[str, Any]:
         "schema_version": "v1",
         "name_for_human": "Electrotechnique GPT Tool",
         "name_for_model": "electrotechnique_gpt_tool",
-        "description_for_human": "Calculs scientifiques, simulations avancees, recherche documentaire et workflow TFE/these pour ChatGPT.",
+        "description_for_human": "Calculs scientifiques, simulations avec graphiques et dashboard temps reel, ingestion live MQTT/Modbus/WebSocket, diagnostic d'ingenierie, recherche documentaire et workflow TFE/these pour ChatGPT.",
         "description_for_model": (
             "Use this tool for scientific calculations, advanced electrical simulations, transformer-loss queries, "
-            "three-phase or motor analysis, electrical-engineering paper retrieval, and academic assistance for TFE, memoire or thesis workflows and planning. "
+            "three-phase or motor analysis, realtime simulation dashboards, live telemetry connectors for MQTT, Modbus and WebSocket, "
+            "engineering diagnosis and troubleshooting, electrical-engineering paper retrieval, "
+            "and academic assistance for TFE, memoire or thesis workflows and planning. "
             "Send the user request in the input field."
         ),
         "auth": {"type": "none"},
@@ -2366,7 +3540,20 @@ def home():
             "/arxiv",
             "/academic-assistant",
             "/thesis-workflow",
+            "/connectors-status",
+            "/live-connectors",
+            "/telemetry-ingest",
+            "/telemetry-stream",
+            "/live-dashboard",
+            "/modbus-read",
+            "/ws/telemetry-ingest/{channel}",
+            "/ws/telemetry-watch/{channel}",
             "/simulate",
+            "/simulate-plot",
+            "/simulate-stream",
+            "/realtime-simulation",
+            "/realtime-dashboard",
+            "/engineering-diagnosis",
             "/research",
             "/smart-query",
             "/gpt-tool",
@@ -2379,6 +3566,349 @@ def home():
 @app.get("/health", response_model=HealthResponse)
 def health():
     return HealthResponse(status="ok")
+
+
+@app.get("/connectors-status", response_model=ConnectorStatusResponse)
+def connectors_status():
+    return _build_connector_status_payload()
+
+
+@app.get(
+    "/live-connectors",
+    response_model=LiveConnectorResponse,
+    response_model_exclude_none=True,
+    summary="Connecteurs live",
+    description="Guide de connexion live pour capteurs, automates, MQTT, Modbus TCP, HTTP et WebSocket.",
+)
+def live_connectors(
+    request: Request,
+    query: str | None = Query(None, min_length=2, max_length=400, description="Besoin ou scenario live"),
+    input_text: str | None = Query(
+        None,
+        alias="input",
+        min_length=2,
+        max_length=400,
+        description="Alias principal pour l'integration live",
+    ),
+):
+    raw_query = _get_text_param(query) or _get_text_param(input_text) or "integration live capteurs et automate"
+    return _build_live_connector_payload(raw_query, _get_base_url(request=request))
+
+
+@app.post(
+    "/telemetry-ingest",
+    response_model=TelemetryIngestResponse,
+    response_model_exclude_none=True,
+    summary="Ingestion HTTP",
+    description="Ingestion HTTP simple de donnees live pour capteurs, scripts, passerelles ou automates.",
+)
+def telemetry_ingest(payload: TelemetryIngestRequest = Body(...)):
+    frame = _append_telemetry_frame(payload.channel, payload.source or "http", payload.values, payload.metadata)
+    return TelemetryIngestResponse(
+        status="ok",
+        source="http-ingest",
+        frame=TelemetryFrame(**frame),
+        retained_points=len(_get_telemetry_frames(payload.channel, limit=MAX_TELEMETRY_POINTS)),
+    ).model_dump()
+
+
+@app.get(
+    "/telemetry-stream",
+    summary="Flux telemetry live",
+    description="Diffuse les trames live d'un canal via Server-Sent Events.",
+)
+async def telemetry_stream(
+    channel: str = Query(..., min_length=1, max_length=120, description="Canal logique a ecouter"),
+    after_sequence: int = Query(0, ge=0, description="Sequence a partir de laquelle reprendre"),
+    pace_ms: int = Query(250, ge=50, le=5000, description="Frequence de verification du flux"),
+):
+    safe_channel = _sanitize_channel_name(channel)
+
+    async def event_generator():
+        last_sequence = after_sequence
+        yield _format_sse_event("meta", {"channel": safe_channel, "status": "listening"})
+        try:
+            while True:
+                frames = _get_telemetry_frames(safe_channel, limit=200, after_sequence=last_sequence)
+                if frames:
+                    for frame in frames:
+                        last_sequence = max(last_sequence, int(frame.get("sequence", 0)))
+                        yield _format_sse_event("point", frame)
+                else:
+                    yield _format_sse_event("heartbeat", {"channel": safe_channel, "sequence": last_sequence})
+                await asyncio.sleep(pace_ms / 1000.0)
+        except asyncio.CancelledError:
+            return
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
+@app.get(
+    "/live-dashboard",
+    response_class=HTMLResponse,
+    summary="Dashboard live capteurs",
+    description="Dashboard web pour visualiser les donnees live recues via HTTP, WebSocket, MQTT ou Modbus.",
+)
+def live_dashboard(
+    request: Request,
+    channel: str = Query("atelier-ligne-1", min_length=1, max_length=120, description="Canal logique a visualiser"),
+):
+    base_url = _get_base_url(request=request)
+    safe_channel = _sanitize_channel_name(channel)
+    page = f"""<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ElectroGPT Live Telemetry</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {{ margin:0; font-family:"Segoe UI",sans-serif; background:#f4f8fb; color:#132238; }}
+    .wrap {{ max-width:1200px; margin:0 auto; padding:24px; }}
+    .hero {{ background:#0b1f33; color:#fff; padding:24px; border-radius:18px; }}
+    .controls {{ display:grid; grid-template-columns:1fr auto auto; gap:12px; margin-top:18px; }}
+    input, textarea, button {{ font:inherit; border-radius:12px; padding:12px 14px; border:1px solid #c9d7e6; }}
+    button {{ background:#006d77; color:#fff; border:none; cursor:pointer; }}
+    .secondary {{ background:#355070; }}
+    .grid {{ display:grid; grid-template-columns:2fr 1fr; gap:18px; margin-top:18px; }}
+    .card {{ background:#fff; border-radius:18px; padding:18px; box-shadow:0 12px 28px rgba(19,34,56,.08); }}
+    canvas {{ width:100% !important; height:420px !important; }}
+    .meta {{ display:grid; gap:10px; font-size:14px; }}
+    .badge {{ display:inline-block; background:#d9f0f2; color:#005b63; padding:6px 10px; border-radius:999px; font-size:12px; font-weight:600; }}
+    .payload {{ min-height:140px; }}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hero">
+      <h1>ElectroGPT Live Telemetry Dashboard</h1>
+      <p>Visualise en direct les donnees capteurs, automate ou passerelle envoyees via HTTP, WebSocket, MQTT ou Modbus.</p>
+      <div class="controls">
+        <input id="channelInput" value="{html.escape(safe_channel, quote=True)}" />
+        <button id="listenBtn">Ecouter</button>
+        <button id="stopBtn" class="secondary">Stop</button>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card"><canvas id="chartCanvas"></canvas></div>
+      <div class="card meta">
+        <div id="statusText"><span class="badge">Pret</span> En attente de donnees.</div>
+        <div id="channelText">Canal: {html.escape(safe_channel)}</div>
+        <div id="linksText"></div>
+        <textarea id="jsonInput" class="payload">{{"temperature_c": 46.2, "current_a": 18.4}}</textarea>
+        <button id="sendSampleBtn">Envoyer un echantillon HTTP</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const baseUrl = {json.dumps(base_url)};
+    const channelInput = document.getElementById("channelInput");
+    const statusText = document.getElementById("statusText");
+    const channelText = document.getElementById("channelText");
+    const linksText = document.getElementById("linksText");
+    const jsonInput = document.getElementById("jsonInput");
+    let eventSource = null;
+    let chart = null;
+    let datasetsBySignal = {{}};
+    const palette = ["#006d77", "#d62828", "#3a86ff", "#f4a261", "#6a994e", "#6f1d1b"];
+
+    function ensureChart() {{
+      if (chart) return;
+      chart = new Chart(document.getElementById("chartCanvas").getContext("2d"), {{
+        type: "line",
+        data: {{ labels: [], datasets: [] }},
+        options: {{
+          animation: false,
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {{
+            x: {{ title: {{ display: true, text: "Sequence" }} }},
+            y: {{ title: {{ display: true, text: "Valeur" }} }},
+          }},
+        }},
+      }});
+    }}
+
+    function resetChart() {{
+      if (chart) {{
+        chart.destroy();
+        chart = null;
+      }}
+      datasetsBySignal = {{}};
+      ensureChart();
+    }}
+
+    function ensureDataset(signal) {{
+      ensureChart();
+      if (datasetsBySignal[signal] !== undefined) return datasetsBySignal[signal];
+      const datasetIndex = chart.data.datasets.length;
+      chart.data.datasets.push({{
+        label: signal,
+        data: [],
+        borderColor: palette[datasetIndex % palette.length],
+        backgroundColor: palette[datasetIndex % palette.length],
+        borderWidth: 2,
+        fill: false,
+        tension: 0.18,
+      }});
+      datasetsBySignal[signal] = datasetIndex;
+      return datasetIndex;
+    }}
+
+    function stopListening() {{
+      if (eventSource) {{
+        eventSource.close();
+        eventSource = null;
+      }}
+    }}
+
+    function listenChannel() {{
+      stopListening();
+      resetChart();
+      const channel = channelInput.value.trim();
+      if (!channel) return;
+      channelText.textContent = "Canal: " + channel;
+      statusText.innerHTML = "<span class='badge'>Ecoute</span> Flux en attente...";
+      linksText.innerHTML = `
+        <div>HTTP ingest: <code>${{baseUrl}}/telemetry-ingest</code></div>
+        <div>WebSocket ingest: <code>${{baseUrl.replace('https://', 'wss://').replace('http://', 'ws://')}}/ws/telemetry-ingest/${{channel}}</code></div>
+      `;
+      eventSource = new EventSource(`${{baseUrl}}/telemetry-stream?channel=${{encodeURIComponent(channel)}}`);
+      eventSource.addEventListener("point", (event) => {{
+        const frame = JSON.parse(event.data);
+        chart.data.labels.push(frame.sequence);
+        Object.entries(frame.values || {{}}).forEach(([signal, value]) => {{
+          const index = ensureDataset(signal);
+          while (chart.data.datasets[index].data.length < chart.data.labels.length - 1) {{
+            chart.data.datasets[index].data.push(null);
+          }}
+          chart.data.datasets[index].data.push(typeof value === "number" ? value : null);
+        }});
+        chart.data.datasets.forEach((dataset) => {{
+          while (dataset.data.length < chart.data.labels.length) dataset.data.push(null);
+        }});
+        chart.update("none");
+        statusText.innerHTML = `<span class='badge'>Actif</span> Derniere trame #${{frame.sequence}} via ${{frame.source}}`;
+      }});
+      eventSource.onerror = () => {{
+        statusText.innerHTML = "<span class='badge'>Pause</span> Flux interrompu ou inactif.";
+      }};
+    }}
+
+    async function sendSample() {{
+      const channel = channelInput.value.trim();
+      if (!channel) return;
+      let values = {{}};
+      try {{
+        values = JSON.parse(jsonInput.value || "{{}}");
+      }} catch (error) {{
+        statusText.innerHTML = "<span class='badge'>Erreur</span> JSON invalide dans l'echantillon.";
+        return;
+      }}
+      const resp = await fetch(`${{baseUrl}}/telemetry-ingest`, {{
+        method: "POST",
+        headers: {{ "Content-Type": "application/json" }},
+        body: JSON.stringify({{ channel, values, source: "dashboard-http" }}),
+      }});
+      const payload = await resp.json();
+      statusText.innerHTML = `<span class='badge'>Injecte</span> Trame #${{payload.frame.sequence}} envoyee.`;
+    }}
+
+    document.getElementById("listenBtn").addEventListener("click", listenChannel);
+    document.getElementById("stopBtn").addEventListener("click", () => {{
+      stopListening();
+      statusText.innerHTML = "<span class='badge'>Stop</span> Ecoute arretee.";
+    }});
+    document.getElementById("sendSampleBtn").addEventListener("click", sendSample);
+    listenChannel();
+  </script>
+</body>
+</html>"""
+    return HTMLResponse(page)
+
+
+@app.get(
+    "/modbus-read",
+    response_model=ModbusReadResponse,
+    response_model_exclude_none=True,
+    summary="Lecture Modbus TCP",
+    description="Interroge un equipement Modbus TCP, puis injecte les registres lus dans le pipeline telemetry live.",
+)
+def modbus_read(
+    host: str = Query(..., min_length=1, max_length=255, description="Adresse IP ou nom d'hote du serveur Modbus TCP"),
+    port: int = Query(502, ge=1, le=65535, description="Port TCP Modbus"),
+    unit_id: int = Query(1, ge=0, le=255, description="Adresse esclave / unit id"),
+    address: int = Query(0, ge=0, le=65535, description="Adresse du premier registre"),
+    count: int = Query(4, ge=1, le=120, description="Nombre de registres a lire"),
+    register_type: str = Query("holding", pattern="^(holding|input)$", description="Type de registre a lire"),
+    channel: str = Query("modbus-live", min_length=1, max_length=120, description="Canal telemetry de sortie"),
+    labels: str | None = Query(None, description="Etiquettes optionnelles separees par des virgules"),
+    scale: float = Query(1.0, description="Facteur d'echelle applique aux registres"),
+    signed: bool = Query(False, description="Interprete les registres comme entiers signes sur 16 bits"),
+):
+    labels_text = _get_text_param(labels)
+    label_items = [item.strip() for item in labels_text.split(",")] if labels_text else []
+    return _read_modbus_payload(
+        host=host,
+        port=port,
+        unit_id=unit_id,
+        address=address,
+        count=count,
+        register_type=register_type,
+        channel=channel,
+        labels=label_items,
+        scale=scale,
+        signed=signed,
+    )
+
+
+@app.websocket("/ws/telemetry-ingest/{channel}")
+async def ws_telemetry_ingest(websocket: WebSocket, channel: str):
+    await websocket.accept()
+    safe_channel = _sanitize_channel_name(channel)
+    try:
+        while True:
+            message = await websocket.receive()
+            if message.get("type") == "websocket.disconnect":
+                break
+            payload = {}
+            if "text" in message and message["text"] is not None:
+                text_payload = message["text"]
+                try:
+                    payload = json.loads(text_payload)
+                except json.JSONDecodeError:
+                    payload = {"values": {"value": text_payload}}
+            elif "bytes" in message and message["bytes"] is not None:
+                try:
+                    payload = json.loads(message["bytes"].decode("utf-8", errors="ignore"))
+                except json.JSONDecodeError:
+                    payload = {"values": {"value": message["bytes"].decode("utf-8", errors="ignore")}}
+
+            values = payload.get("values", payload if isinstance(payload, dict) else {"value": payload})
+            metadata = payload.get("metadata", {}) if isinstance(payload, dict) else {}
+            frame = _append_telemetry_frame(safe_channel, "websocket", values, metadata)
+            await websocket.send_json({"status": "ok", "frame": frame})
+    except WebSocketDisconnect:
+        return
+
+
+@app.websocket("/ws/telemetry-watch/{channel}")
+async def ws_telemetry_watch(websocket: WebSocket, channel: str):
+    await websocket.accept()
+    safe_channel = _sanitize_channel_name(channel)
+    last_sequence = 0
+    try:
+        while True:
+            frames = _get_telemetry_frames(safe_channel, limit=100, after_sequence=last_sequence)
+            if frames:
+                for frame in frames:
+                    last_sequence = max(last_sequence, int(frame.get("sequence", 0)))
+                    await websocket.send_json(frame)
+            await asyncio.sleep(0.25)
+    except WebSocketDisconnect:
+        return
 
 
 @app.get("/wolfram", response_model=WolframResponse)
@@ -2485,6 +4015,61 @@ def thesis_workflow(
 
 
 @app.get(
+    "/engineering-diagnosis",
+    response_model=EngineeringDiagnosisResponse,
+    response_model_exclude_none=True,
+    summary="Diagnostic d'ingenierie",
+    description="Analyse structuree d'un probleme technique avec causes probables, mesures a prendre, equations a verifier, outils et plan d'action.",
+)
+def engineering_diagnosis(
+    query: str | None = Query(None, min_length=2, max_length=500, description="Description libre du probleme technique"),
+    input_text: str | None = Query(
+        None,
+        alias="input",
+        min_length=2,
+        max_length=500,
+        description="Alias principal pour un probleme, une panne ou un diagnostic technique",
+    ),
+):
+    raw_query = _get_text_param(query) or _get_text_param(input_text)
+    if not raw_query:
+        raise HTTPException(
+            status_code=422,
+            detail="Fournis un parametre 'query' ou 'input'.",
+        )
+
+    return _build_engineering_diagnosis_payload(raw_query)
+
+
+@app.get(
+    "/realtime-simulation",
+    response_model=RealtimeSimulationResponse,
+    response_model_exclude_none=True,
+    summary="Simulation temps reel",
+    description="Prepare un dashboard web et un flux SSE pour rejouer une simulation de maniere progressive dans le navigateur.",
+)
+def realtime_simulation(
+    query: str | None = Query(None, min_length=2, max_length=500, description="Requete de simulation a diffuser"),
+    input_text: str | None = Query(
+        None,
+        alias="input",
+        min_length=2,
+        max_length=500,
+        description="Alias principal pour un dashboard ou un streaming temps reel",
+    ),
+    pace_ms: int = Query(120, ge=20, le=2000, description="Intervalle entre deux points diffuses, en millisecondes"),
+):
+    raw_query = _get_text_param(query) or _get_text_param(input_text)
+    if not raw_query:
+        raise HTTPException(
+            status_code=422,
+            detail="Fournis un parametre 'query' ou 'input'.",
+        )
+
+    return _build_realtime_dashboard_payload(raw_query, pace_ms=pace_ms)
+
+
+@app.get(
     "/simulate",
     response_model=SimulationResponse,
     response_model_exclude_none=True,
@@ -2509,6 +4094,403 @@ def simulate(
         )
 
     return _simulate_from_query(raw_query)
+
+
+@app.get(
+    "/simulate-stream",
+    summary="Flux temps reel de simulation",
+    description="Diffuse une simulation point par point via Server-Sent Events pour un dashboard web.",
+)
+async def simulate_stream(
+    query: str | None = Query(None, min_length=2, max_length=500, description="Requete de simulation libre"),
+    input_text: str | None = Query(
+        None,
+        alias="input",
+        min_length=2,
+        max_length=500,
+        description="Alias principal pour la simulation temps reel",
+    ),
+    signals: str | None = Query(
+        None,
+        description="Liste optionnelle de signaux separes par des virgules.",
+    ),
+    pace_ms: int = Query(120, ge=20, le=2000, description="Intervalle entre deux points diffuses, en millisecondes"),
+):
+    raw_query = _get_text_param(query) or _get_text_param(input_text)
+    if not raw_query:
+        raise HTTPException(
+            status_code=422,
+            detail="Fournis un parametre 'query' ou 'input'.",
+        )
+
+    payload = _simulate_from_query(raw_query)
+    if payload.get("status") != "ok":
+        raise HTTPException(status_code=400, detail=payload.get("summary", "Simulation invalide."))
+
+    requested_signals = []
+    signals_text = _get_text_param(signals)
+    if signals_text:
+        requested_signals = [item.strip() for item in signals_text.split(",") if item.strip()]
+
+    selected_signals = [signal for signal in requested_signals if _extract_signal_series(payload, signal)]
+    if not selected_signals:
+        selected_signals = [signal for signal in _guess_plot_signals(payload) if _extract_signal_series(payload, signal)]
+    if not selected_signals:
+        selected_signals = list((payload.get("metrics") or {}).keys())[:3]
+
+    async def event_generator():
+        meta_payload = {
+            "kind": payload.get("kind"),
+            "summary": payload.get("summary"),
+            "signals": selected_signals,
+            "count": payload.get("count", 0),
+            "parameters": payload.get("parameters", {}),
+        }
+        yield _format_sse_event("meta", meta_payload)
+        for item in payload.get("series", []):
+            values = {}
+            for signal in selected_signals:
+                signal_value = item.get(signal)
+                if signal_value is None and isinstance(item.get("signals"), dict):
+                    signal_value = item["signals"].get(signal)
+                if isinstance(signal_value, (int, float)):
+                    values[signal] = signal_value
+            yield _format_sse_event(
+                "point",
+                {
+                    "time_s": item.get("time_s", 0.0),
+                    "values": values,
+                },
+            )
+            await asyncio.sleep(pace_ms / 1000.0)
+        yield _format_sse_event("done", {"status": "completed"})
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
+@app.get(
+    "/realtime-dashboard",
+    response_class=HTMLResponse,
+    summary="Dashboard temps reel",
+    description="Interface web de streaming et de visualisation des simulations electrotechniques.",
+)
+def realtime_dashboard(
+    request: Request,
+    query: str | None = Query(None, min_length=2, max_length=500, description="Requete initiale de simulation"),
+    input_text: str | None = Query(
+        None,
+        alias="input",
+        min_length=2,
+        max_length=500,
+        description="Alias principal pour la simulation a visualiser",
+    ),
+):
+    raw_query = _get_text_param(query) or _get_text_param(input_text) or "simulate rc r=1000 c=0.001 v=5 t=5 steps=60"
+    base_url = _get_base_url(request=request)
+    escaped_query = html.escape(raw_query, quote=True)
+    page = f"""<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ElectroGPT Realtime Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {{
+      margin: 0;
+      font-family: "Segoe UI", sans-serif;
+      background: linear-gradient(180deg, #f4f8fb 0%, #eef3f8 100%);
+      color: #132238;
+    }}
+    .wrap {{
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px;
+    }}
+    .hero {{
+      background: #0b1f33;
+      color: #fff;
+      padding: 24px;
+      border-radius: 18px;
+      box-shadow: 0 20px 50px rgba(11, 31, 51, 0.15);
+    }}
+    .controls {{
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 12px;
+      margin-top: 18px;
+    }}
+    input, button {{
+      font: inherit;
+      border-radius: 12px;
+      border: 1px solid #c9d7e6;
+      padding: 12px 14px;
+    }}
+    button {{
+      background: #006d77;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+    }}
+    button.secondary {{
+      background: #355070;
+    }}
+    .panel-grid {{
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 18px;
+      margin-top: 20px;
+    }}
+    .card {{
+      background: #fff;
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: 0 14px 30px rgba(31, 53, 79, 0.08);
+    }}
+    .meta {{
+      display: grid;
+      gap: 10px;
+      font-size: 14px;
+    }}
+    .badge {{
+      display: inline-block;
+      background: #d9f0f2;
+      color: #005b63;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-right: 6px;
+    }}
+    .examples {{
+      margin-top: 14px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }}
+    .example-btn {{
+      background: #edf6f9;
+      color: #123;
+      border: 1px solid #c5dbe0;
+      padding: 8px 10px;
+      border-radius: 999px;
+      cursor: pointer;
+    }}
+    canvas {{
+      width: 100% !important;
+      height: 420px !important;
+    }}
+    a {{
+      color: #006d77;
+    }}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hero">
+      <h1>ElectroGPT Realtime Dashboard</h1>
+      <p>Streaming progressif des points de simulation, lecture des tendances et interpretation rapide pour l'ingenierie et l'electrotechnique.</p>
+      <div class="controls">
+        <input id="queryInput" value="{escaped_query}" />
+        <button id="startBtn">Lancer</button>
+        <button id="stopBtn" class="secondary">Stop</button>
+      </div>
+      <div class="examples">
+        <button class="example-btn" data-query="simulate rc r=1000 c=0.001 v=5 t=5 steps=60">RC</button>
+        <button class="example-btn" data-query="simulate rl r=10 l=0.2 v=24 t=1 steps=80">RL</button>
+        <button class="example-btn" data-query="simulate rlc r=10 l=0.05 c=0.0001 v=24 t=1 steps=120">RLC</button>
+        <button class="example-btn" data-query="simulate dc motor v=24 r=1.2 l=0.02 ke=0.08 kt=0.08 j=0.01 t=2">Moteur DC</button>
+      </div>
+    </div>
+
+    <div class="panel-grid">
+      <div class="card">
+        <canvas id="chartCanvas"></canvas>
+      </div>
+      <div class="card meta">
+        <div id="statusText"><span class="badge">Pret</span> En attente d'une simulation.</div>
+        <div id="summaryText"></div>
+        <div id="interpretationText"></div>
+        <div id="linksText"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const baseUrl = {json.dumps(base_url)};
+    const queryInput = document.getElementById("queryInput");
+    const statusText = document.getElementById("statusText");
+    const summaryText = document.getElementById("summaryText");
+    const interpretationText = document.getElementById("interpretationText");
+    const linksText = document.getElementById("linksText");
+    const chartCanvas = document.getElementById("chartCanvas");
+    let eventSource = null;
+    let chart = null;
+
+    function stopStream() {{
+      if (eventSource) {{
+        eventSource.close();
+        eventSource = null;
+      }}
+    }}
+
+    function buildChart(signals) {{
+      if (chart) {{
+        chart.destroy();
+      }}
+      const palette = ["#006d77", "#d62828", "#3a86ff", "#f4a261", "#6a994e"];
+      chart = new Chart(chartCanvas.getContext("2d"), {{
+        type: "line",
+        data: {{
+          labels: [],
+          datasets: signals.map((signal, index) => ({{
+            label: signal,
+            data: [],
+            borderColor: palette[index % palette.length],
+            backgroundColor: palette[index % palette.length],
+            borderWidth: 2,
+            fill: false,
+            tension: 0.18,
+          }})),
+        }},
+        options: {{
+          animation: false,
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {{
+            x: {{ title: {{ display: true, text: "Temps (s)" }} }},
+            y: {{ title: {{ display: true, text: "Amplitude" }} }},
+          }},
+        }},
+      }});
+    }}
+
+    async function startRealtime() {{
+      stopStream();
+      const query = queryInput.value.trim();
+      if (!query) {{
+        return;
+      }}
+
+      statusText.innerHTML = "<span class='badge'>Chargement</span> Preparation de la simulation...";
+      summaryText.textContent = "";
+      interpretationText.textContent = "";
+      linksText.innerHTML = "";
+
+      const configResp = await fetch(`${{baseUrl}}/realtime-simulation?input=${{encodeURIComponent(query)}}`);
+      const config = await configResp.json();
+      if (config.status !== "ok") {{
+        statusText.innerHTML = "<span class='badge'>Erreur</span> " + (config.summary || "Simulation non disponible.");
+        return;
+      }}
+
+      const sim = config.simulation || {{}};
+      const signals = config.recommended_signals || [];
+      buildChart(signals);
+
+      statusText.innerHTML = "<span class='badge'>Streaming</span> Flux actif";
+      summaryText.textContent = sim.summary || config.summary || "";
+      interpretationText.innerHTML = (sim.interpretation || []).map((item) => `<div>- ${{item}}</div>`).join("");
+      const staticPlot = (sim.visualizations || []).find((item) => item.kind === "svg-plot");
+      linksText.innerHTML = `
+        <div><a href="${{config.dashboard_url}}" target="_blank" rel="noreferrer">Ouvrir ce dashboard dans un nouvel onglet</a></div>
+        ${{staticPlot ? `<div><a href="${{staticPlot.url}}" target="_blank" rel="noreferrer">Ouvrir la courbe SVG statique</a></div>` : ""}}
+      `;
+
+      const streamUrl = `${{baseUrl}}/simulate-stream?input=${{encodeURIComponent(query)}}&pace_ms=${{config.pace_ms}}&signals=${{encodeURIComponent(signals.join(","))}}`;
+      eventSource = new EventSource(streamUrl);
+
+      eventSource.addEventListener("meta", (event) => {{
+        const payload = JSON.parse(event.data);
+        buildChart(payload.signals || signals);
+      }});
+
+      eventSource.addEventListener("point", (event) => {{
+        const payload = JSON.parse(event.data);
+        chart.data.labels.push(payload.time_s);
+        chart.data.datasets.forEach((dataset) => {{
+          const value = payload.values[dataset.label];
+          dataset.data.push(value ?? null);
+        }});
+        chart.update("none");
+      }});
+
+      eventSource.addEventListener("done", () => {{
+        statusText.innerHTML = "<span class='badge'>Termine</span> Le streaming est termine.";
+        stopStream();
+      }});
+
+      eventSource.onerror = () => {{
+        statusText.innerHTML = "<span class='badge'>Interrompu</span> Le flux a ete interrompu ou ferme.";
+        stopStream();
+      }};
+    }}
+
+    document.getElementById("startBtn").addEventListener("click", startRealtime);
+    document.getElementById("stopBtn").addEventListener("click", () => {{
+      stopStream();
+      statusText.innerHTML = "<span class='badge'>Stop</span> Streaming arrete manuellement.";
+    }});
+    document.querySelectorAll(".example-btn").forEach((button) => {{
+      button.addEventListener("click", () => {{
+        queryInput.value = button.dataset.query;
+        startRealtime();
+      }});
+    }});
+  </script>
+</body>
+</html>"""
+    return HTMLResponse(page)
+
+
+@app.get(
+    "/simulate-plot",
+    summary="Visualisation de simulation",
+    description="Retourne une visualisation SVG exploitable dans un navigateur a partir d'une simulation existante.",
+    response_class=Response,
+)
+def simulate_plot(
+    query: str | None = Query(None, min_length=2, max_length=400, description="Requete de simulation libre"),
+    input_text: str | None = Query(
+        None,
+        alias="input",
+        min_length=2,
+        max_length=400,
+        description="Alias principal pour la requete de simulation",
+    ),
+    signals: str | None = Query(
+        None,
+        description="Liste optionnelle de signaux separes par des virgules. Exemple: capacitor_voltage_v,resistor_current_a",
+    ),
+    style: str = Query(
+        "auto",
+        pattern="^(auto|line|bars)$",
+        description="Style de rendu SVG: auto, line ou bars.",
+    ),
+):
+    raw_query = _get_text_param(query) or _get_text_param(input_text)
+    if not raw_query:
+        raise HTTPException(
+            status_code=422,
+            detail="Fournis un parametre 'query' ou 'input'.",
+        )
+
+    payload = _simulate_from_query(raw_query)
+    if payload.get("status") != "ok":
+        raise HTTPException(status_code=400, detail=payload.get("summary", "Simulation invalide."))
+
+    signals_text = _get_text_param(signals)
+    requested_signals = []
+    if signals_text:
+        requested_signals = [item.strip() for item in signals_text.split(",") if item.strip()]
+
+    has_time_series = payload.get("count", 0) > 1
+    render_style = _get_text_param(style) or "auto"
+    if render_style == "auto":
+        render_style = "line" if has_time_series else "bars"
+
+    svg = _build_svg_line_chart(payload, requested_signals) if render_style == "line" else _build_svg_metric_bars(payload, requested_signals)
+    return Response(content=svg, media_type="image/svg+xml")
 
 
 @app.get("/research", response_model=ResearchResponse)
@@ -2623,6 +4605,52 @@ def smart_query(
                 response=payload.get("summary"),
                 data=payload,
                 error="" if payload.get("status") == "ok" else payload.get("summary"),
+            )
+
+        if route == "realtime":
+            payload = _build_realtime_dashboard_payload(normalized_query)
+            return _build_smart_payload(
+                status=payload.get("status", "ok"),
+                mode="realtime",
+                raw_query=raw_query,
+                normalized_query=normalized_query,
+                reason=reason,
+                max_results=max_results_value,
+                auto_filter=auto_filter_value,
+                executed=payload.get("status") == "ok",
+                response=_build_realtime_brief(payload),
+                data=payload,
+                error="" if payload.get("status") == "ok" else payload.get("summary", "Le dashboard temps reel n'a pas pu etre prepare."),
+            )
+
+        if route == "live":
+            payload = _build_live_connector_payload(normalized_query, DEFAULT_PUBLIC_BASE_URL)
+            return _build_smart_payload(
+                status=payload.get("status", "ok"),
+                mode="live",
+                raw_query=raw_query,
+                normalized_query=normalized_query,
+                reason=reason,
+                max_results=max_results_value,
+                auto_filter=auto_filter_value,
+                executed=True,
+                response=_build_live_brief(payload),
+                data=payload,
+            )
+
+        if route == "diagnosis":
+            payload = _build_engineering_diagnosis_payload(normalized_query)
+            return _build_smart_payload(
+                status=payload.get("status", "ok"),
+                mode="diagnosis",
+                raw_query=raw_query,
+                normalized_query=normalized_query,
+                reason=reason,
+                max_results=max_results_value,
+                auto_filter=auto_filter_value,
+                executed=True,
+                response=_build_diagnosis_brief(payload),
+                data=payload,
             )
 
         if route == "thesis":

@@ -2,8 +2,8 @@
   "schema_version": "v1",
   "name_for_human": "Electrotechnique GPT Tool",
   "name_for_model": "electrotechnique_gpt_tool",
-  "description_for_human": "Calculs scientifiques, simulations avancees, recherche documentaire et workflow TFE/these pour ChatGPT.",
-  "description_for_model": "Use this tool for scientific calculations, advanced electrical simulations, transformer-loss queries, three-phase or motor analysis, electrical-engineering paper retrieval, and academic assistance for TFE, memoire or thesis workflows and planning. Send the user request in the input field.",
+  "description_for_human": "Calculs scientifiques, simulations avec graphiques et dashboard temps reel, ingestion live MQTT/Modbus/WebSocket, diagnostic d'ingenierie, recherche documentaire et workflow TFE/these pour ChatGPT.",
+  "description_for_model": "Use this tool for scientific calculations, advanced electrical simulations, transformer-loss queries, three-phase or motor analysis, realtime simulation dashboards, live telemetry connectors for MQTT, Modbus and WebSocket, engineering diagnosis and troubleshooting, electrical-engineering paper retrieval, and academic assistance for TFE, memoire or thesis workflows and planning. Send the user request in the input field.",
   "auth": {
     "type": "none"
   },

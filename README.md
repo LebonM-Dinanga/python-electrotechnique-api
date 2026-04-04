@@ -8,6 +8,10 @@ Le projet combine :
 - recherche documentaire technique via arXiv avec fallback Crossref
 - simulations RC, RL et RLC pour des reponses transitoires
 - simulation de transformateur, systeme triphase et moteur DC
+- visualisation SVG des simulations pour courbes, tendances et lecture rapide
+- dashboard web temps reel avec streaming SSE des points de simulation
+- diagnostic structure de problemes d'ingenierie et d'electrotechnique
+- ingestion live de donnees terrain via HTTP, WebSocket, MQTT et Modbus TCP
 - assistant academique pour TFE, PFE, memoire et these
 - routage intelligent via `/smart-query`
 - endpoint stable pour ChatGPT Actions via `/gpt-tool`
@@ -18,7 +22,18 @@ Le projet combine :
 - `GET /arxiv` : recherche d'articles avec filtre electrotechnique automatique
 - `GET /academic-assistant` : plan academique, problematique, objectifs, methode, structure et sources de depart
 - `GET /thesis-workflow` : workflow complet pour TFE, memoire ou these avec plan detaille, bibliographie et calendrier
+- `GET /connectors-status` : etat des connecteurs live et des canaux telemetry actifs
+- `GET /live-connectors` : guide de connexion live pour capteurs, MQTT, Modbus et WebSocket
+- `POST /telemetry-ingest` : ingestion HTTP simple de donnees live
+- `GET /telemetry-stream` : diffusion SSE des trames live d'un canal
+- `GET /live-dashboard` : dashboard web pour visualiser les donnees live d'un canal
+- `GET /modbus-read` : lecture Modbus TCP avec injection dans le pipeline telemetry
 - `GET /simulate` : simulations RC, RL, RLC, transformateur, triphase et moteur DC
+- `GET /simulate-plot` : rendu SVG d'une simulation pour obtenir une courbe ou un tableau visuel
+- `GET /simulate-stream` : diffusion progressive d'une simulation via Server-Sent Events
+- `GET /realtime-simulation` : configuration JSON pour dashboard et streaming temps reel
+- `GET /realtime-dashboard` : dashboard web interactif pour visualiser la simulation en direct
+- `GET /engineering-diagnosis` : diagnostic structure d'un probleme technique avec causes probables et plan d'action
 - `GET /research` : combine les recherches utiles pour une question technique
 - `GET /smart-query` : routeur intelligent riche pour GPT
 - `GET /gpt-tool` : endpoint minimal et stable pour ChatGPT Actions
@@ -71,6 +86,10 @@ Variables recommandees :
 WOLFRAM_APP_ID=<ta_cle_wolframalpha>
 CONTACT_EMAIL=lebonmukendi17@gmail.com
 ARXIV_DOMAIN_FILTER=electrical engineering
+MAX_TELEMETRY_POINTS=600
+MQTT_BROKER_HOST=
+MQTT_BROKER_PORT=1883
+MQTT_TOPIC_PREFIX=electrogpt/telemetry
 ```
 
 Variables optionnelles :
@@ -156,6 +175,44 @@ GET /gpt-tool?input=Guide de recherche pour un memoire sur la protection des rel
 GET /gpt-tool?input=Plan detaille de these sur l integration des energies renouvelables dans les microreseaux
 ```
 
+### Diagnostic d'ingenierie
+
+```text
+GET /engineering-diagnosis?input=Pourquoi mon transformateur chauffe et declenche sous charge
+```
+
+```text
+GET /gpt-tool?input=Pourquoi mon moteur chauffe et vibre apres quelques minutes
+```
+
+### Ingestion live capteurs / automate
+
+```text
+GET /live-connectors?input=Je veux connecter un automate via Modbus et MQTT
+```
+
+```text
+GET /live-dashboard?channel=atelier-ligne-1
+```
+
+```bash
+curl -X POST "https://electrotechnique-gpt-tool.onrender.com/telemetry-ingest" ^
+  -H "Content-Type: application/json" ^
+  -d "{\"channel\":\"atelier-ligne-1\",\"source\":\"http-gateway\",\"values\":{\"temperature_c\":46.2,\"current_a\":18.4}}"
+```
+
+```text
+GET /modbus-read?host=192.168.1.10&port=502&unit_id=1&address=0&count=4&register_type=holding&channel=atelier-ligne-1
+```
+
+```text
+WebSocket ingest: wss://electrotechnique-gpt-tool.onrender.com/ws/telemetry-ingest/atelier-ligne-1
+```
+
+```text
+WebSocket watch: wss://electrotechnique-gpt-tool.onrender.com/ws/telemetry-watch/atelier-ligne-1
+```
+
 ### Simulation electrotechnique
 
 ```text
@@ -180,6 +237,18 @@ GET /gpt-tool?input=simulate three phase vll=400 i=30 pf=0.92 connection=delta
 
 ```text
 GET /gpt-tool?input=simulate dc motor v=24 r=1.2 l=0.02 ke=0.08 kt=0.08 j=0.01 b=0.001 tl=0.2 t=2
+```
+
+```text
+GET /simulate-plot?input=simulate rc r=1000 c=0.001 v=5 t=5 steps=50
+```
+
+```text
+GET /realtime-simulation?input=simulate rc r=1000 c=0.001 v=5 t=5 steps=50
+```
+
+```text
+GET /realtime-dashboard?input=simulate rc r=1000 c=0.001 v=5 t=5 steps=50
 ```
 
 ### Reponse directe
