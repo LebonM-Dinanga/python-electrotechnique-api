@@ -3365,11 +3365,88 @@ def _build_gpt_tool_results(mode: str, data: dict[str, Any], fallback_answer: st
     return []
 
 
+def _compact_simulation_details(data: dict[str, Any], preview_points: int = 12) -> dict[str, Any]:
+    series = data.get("series", []) or []
+    safe_preview = max(0, min(preview_points, len(series)))
+    return {
+        "status": data.get("status", ""),
+        "source": data.get("source", ""),
+        "kind": data.get("kind", ""),
+        "simulation_mode": data.get("simulation_mode", ""),
+        "query": data.get("query", ""),
+        "summary": data.get("summary", ""),
+        "parameters": data.get("parameters", {}),
+        "metrics": data.get("metrics", {}),
+        "interpretation": data.get("interpretation", []),
+        "visualizations": data.get("visualizations", []),
+        "streaming": data.get("streaming", {}),
+        "count": data.get("count", len(series)),
+        "series_preview": series[:safe_preview],
+        "series_truncated": len(series) > safe_preview,
+    }
+
+
+def _compact_gpt_tool_details(mode: str, data: dict[str, Any]) -> dict[str, Any]:
+    if not data:
+        return {}
+
+    if mode == "simulation":
+        return _compact_simulation_details(data)
+
+    if mode == "realtime":
+        compact = {
+            "status": data.get("status", ""),
+            "source": data.get("source", ""),
+            "query": data.get("query", ""),
+            "summary": data.get("summary", ""),
+            "dashboard_url": data.get("dashboard_url", ""),
+            "stream_url": data.get("stream_url", ""),
+            "recommended_signals": data.get("recommended_signals", []),
+            "pace_ms": data.get("pace_ms", 0),
+        }
+        simulation = data.get("simulation")
+        if isinstance(simulation, dict):
+            compact["simulation"] = _compact_simulation_details(simulation, preview_points=8)
+        return compact
+
+    if mode == "live":
+        return {
+            "status": data.get("status", ""),
+            "source": data.get("source", ""),
+            "query": data.get("query", ""),
+            "summary": data.get("summary", ""),
+            "dashboard_url": data.get("dashboard_url", ""),
+            "stream_url": data.get("stream_url", ""),
+            "http_ingest_url": data.get("http_ingest_url", ""),
+            "websocket_ingest_url_template": data.get("websocket_ingest_url_template", ""),
+            "websocket_watch_url_template": data.get("websocket_watch_url_template", ""),
+            "mqtt_status": data.get("mqtt_status", {}),
+            "modbus_example_url": data.get("modbus_example_url", ""),
+            "next_steps": data.get("next_steps", []),
+        }
+
+    if mode == "arxiv":
+        return {
+            "status": data.get("status", ""),
+            "source": data.get("source", ""),
+            "provider": data.get("provider", ""),
+            "query": data.get("query", ""),
+            "effective_query": data.get("effective_query", ""),
+            "domain_filter_applied": data.get("domain_filter_applied", False),
+            "count": data.get("count", 0),
+            "warning": data.get("warning", ""),
+            "top_results": (data.get("results") or [])[:3],
+        }
+
+    return data
+
+
 def _to_gpt_tool_response(smart_payload: dict[str, Any]) -> dict[str, Any]:
     mode = smart_payload.get("mode", "basic")
     data = smart_payload.get("data") or smart_payload.get("external_result") or {}
     answer = smart_payload.get("response") or smart_payload.get("answer") or ""
     error = smart_payload.get("error") or ""
+    compact_details = _compact_gpt_tool_details(mode, data)
 
     if mode == "arxiv":
         source = data.get("provider") or data.get("source") or "arxiv"
@@ -3410,7 +3487,7 @@ def _to_gpt_tool_response(smart_payload: dict[str, Any]) -> dict[str, Any]:
         redirect=smart_payload.get("redirect") or "",
         answer=answer,
         results=[GptToolResult(**item) for item in _build_gpt_tool_results(mode, data, answer)],
-        details=data,
+        details=compact_details,
         error=error,
     ).model_dump()
 
