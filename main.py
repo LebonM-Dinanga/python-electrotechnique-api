@@ -226,9 +226,27 @@ SIMULATION_HINTS = {
     "simu",
     "transient",
     "step response",
+    "time response",
+    "temporal response",
+    "reponse temporelle",
+    "réponse temporelle",
+    "reponse transitoire",
+    "réponse transitoire",
     "charge",
     "discharge",
     "decay",
+    "dimensionnement",
+    "dimensionner",
+    "dimensioning",
+    "sizing",
+    "interpretation",
+    "interprétation",
+    "oscillation",
+    "overshoot",
+    "damping",
+    "amortissement",
+    "resonance",
+    "resonant",
     "capacitor",
     "capacitive",
     "inductor",
@@ -1729,11 +1747,41 @@ def _looks_like_diagnosis_request(query: str) -> bool:
 
 def _looks_like_simulation_request(query: str) -> bool:
     lowered_query = query.lower()
-    explicit_hints = {"simulate", "simulation", "simuler", "simu", "transient", "step response"}
-    if _contains_any(lowered_query, explicit_hints) and re.search(
-        r"\brc\b|\brl\b|\brlc\b|capacitor|capacitive|inductor|inductive|transformer|transfo|three phase|three-phase|triphas|dc motor|motor dc|moteur dc|back emf",
-        lowered_query,
-    ):
+    circuit_signature = bool(
+        re.search(
+            r"\brc\b|\brl\b|\brlc\b|capacitor|capacitive|condensat|inductor|inductive|bobine|"
+            r"transformer|transfo|three phase|three-phase|triphas|dc motor|motor dc|moteur dc|back emf|resonan",
+            lowered_query,
+        )
+    )
+    explicit_hints = {
+        "simulate",
+        "simulation",
+        "simuler",
+        "simu",
+        "transient",
+        "step response",
+        "time response",
+        "temporal response",
+        "reponse temporelle",
+        "réponse temporelle",
+        "reponse transitoire",
+        "réponse transitoire",
+        "dimensionnement",
+        "dimensionner",
+        "dimensioning",
+        "sizing",
+        "interpretation",
+        "interprétation",
+        "oscillation",
+        "overshoot",
+        "damping",
+        "amortissement",
+        "resonance",
+    }
+    if circuit_signature and _contains_any(lowered_query, explicit_hints):
+        return True
+    if circuit_signature and re.search(r"\bcircuit\b|\bserie\b|\bsérie\b|\bparallel\b|\bparallele\b|\bparallèle\b", lowered_query):
         return True
     if re.search(r"\bcharge\b|\bdischarge\b", lowered_query) and re.search(r"\brc\b|capacitor|capacitive", lowered_query):
         return True
@@ -1778,10 +1826,54 @@ def _infer_diagnosis_severity(query: str) -> str:
     return "normal"
 
 
+def _infer_diagnosis_severity_safe(query: str) -> str:
+    lowered_query = query.lower()
+    if any(
+        re.search(pattern, lowered_query)
+        for pattern in {
+            r"\bburn\b",
+            r"\bsmoke\b",
+            r"\bfire\b",
+            r"court-circuit",
+            r"short circuit",
+            r"\barc\b",
+            r"\btrip(?:s|ped|ping)?\b",
+            r"\bdeclenche\b",
+            r"\bdéclenche\b",
+        }
+    ):
+        return "critical"
+    if any(
+        re.search(pattern, lowered_query)
+        for pattern in {
+            r"\boverheat\b",
+            r"\bsurchauffe\b",
+            r"\bchauffe\b",
+            r"\binstable\b",
+            r"\bunstable\b",
+            r"\bfailure\b",
+            r"\bpanne\b",
+        }
+    ):
+        return "high"
+    if any(
+        re.search(pattern, lowered_query)
+        for pattern in {
+            r"voltage drop",
+            r"chute de tension",
+            r"\bloss\b",
+            r"\blosses\b",
+            r"\bvibration\b",
+        }
+    ):
+        return "medium"
+    return "normal"
+
+
 def _build_engineering_diagnosis_payload(query: str) -> dict[str, Any]:
     normalized_query = _normalize_text(query)
     domain, system_family = _infer_engineering_domain(normalized_query)
-    severity = _infer_diagnosis_severity(normalized_query)
+    severity = _infer_diagnosis_severity_safe(normalized_query)
 
     probable_causes = [
         "Parametres nominaux ou conditions reelles d'exploitation mal identifies.",
@@ -2229,6 +2321,43 @@ def _build_simulation_error(query: str, kind: str, message: str) -> dict[str, An
         parameters={},
         metrics={},
         interpretation=[],
+        visualizations=[],
+        streaming={},
+        count=0,
+        series=[],
+    ).model_dump()
+
+
+def _build_simulation_needs_input(
+    query: str,
+    kind: str,
+    minimum_inputs: list[str],
+    example_query: str,
+    engineering_goal: str,
+) -> dict[str, Any]:
+    kind_label = kind.upper() if kind else "SYSTEME"
+    return SimulationResponse(
+        status="needs-input",
+        source="simulation-engine",
+        kind=kind,
+        simulation_mode="guidance",
+        query=query,
+        summary=(
+            f"La demande ressemble a un cas de {engineering_goal} pour un circuit {kind_label}, "
+            "mais il manque les parametres minimaux pour executer une simulation exploitable."
+        ),
+        parameters={
+            "minimum_inputs": minimum_inputs,
+            "example_query": example_query,
+        },
+        metrics={
+            "next_step": "Fournir les parametres manquants pour lancer la simulation et obtenir les courbes.",
+        },
+        interpretation=[
+            "Le besoin est bien classe comme une demande de modelisation ou d'interpretation temporelle, pas comme une recherche bibliographique.",
+            "Pour un dimensionnement serieux, il faut preciser les valeurs nominales, la topologie et le critere attendu: amortissement, depassement, resonance, temps de reponse ou energie stockee.",
+            "Une fois les parametres fournis, l'API peut produire la serie temporelle, les metriques utiles et la courbe SVG ou le dashboard temps reel.",
+        ],
         visualizations=[],
         streaming={},
         count=0,
@@ -2816,10 +2945,12 @@ def _simulate_from_query(query: str, steps_default: int = 80) -> dict[str, Any]:
         initial_current_a = _extract_named_float(lowered_query, ["i0", "initial_current"])
         simulation_mode = "decay" if "decay" in lowered_query or "discharge" in lowered_query else "step"
         if resistance_ohms is None or inductance_h is None or capacitance_f is None:
-            return _build_simulation_error(
+            return _build_simulation_needs_input(
                 query,
                 "rlc",
-                "Simulation RLC incomplete. Fournis au minimum r, l et c, par exemple: simulate rlc r=10 l=0.05 c=0.0001 v=24 t=1",
+                ["r", "l", "c", "v", "t"],
+                "simulate rlc r=10 l=0.05 c=0.0001 v=24 t=1 steps=120",
+                "dimensionnement et interpretation de la reponse temporelle",
             )
         return _finalize_simulation_payload(
             _simulate_rlc(
@@ -2841,7 +2972,13 @@ def _simulate_from_query(query: str, steps_default: int = 80) -> dict[str, Any]:
         initial_voltage_v = _extract_named_float(lowered_query, ["vc0", "v0", "initial_voltage"])
         simulation_mode = "discharge" if "discharge" in lowered_query else "charge"
         if resistance_ohms is None or capacitance_f is None:
-            return _build_simulation_error(query, "rc", "Simulation RC incomplete. Fournis au minimum r et c, par exemple: simulate rc r=1000 c=0.001 v=5 t=5")
+            return _build_simulation_needs_input(
+                query,
+                "rc",
+                ["r", "c", "v", "t"],
+                "simulate rc r=1000 c=0.001 v=5 t=5 steps=80",
+                "dimensionnement et lecture de la charge/decharge",
+            )
         return _finalize_simulation_payload(
             _simulate_rc(query, resistance_ohms, capacitance_f, source_voltage_v, duration_s, steps, simulation_mode, initial_voltage_v)
         )
@@ -2850,7 +2987,13 @@ def _simulate_from_query(query: str, steps_default: int = 80) -> dict[str, Any]:
     initial_current_a = _extract_named_float(lowered_query, ["i0", "initial_current"])
     simulation_mode = "decay" if "decay" in lowered_query else "energize"
     if resistance_ohms is None or inductance_h is None:
-        return _build_simulation_error(query, "rl", "Simulation RL incomplete. Fournis au minimum r et l, par exemple: simulate rl r=10 l=0.2 v=24 t=1")
+        return _build_simulation_needs_input(
+            query,
+            "rl",
+            ["r", "l", "v", "t"],
+            "simulate rl r=10 l=0.2 v=24 t=1 steps=80",
+            "dimensionnement et lecture de la montee du courant",
+        )
     return _finalize_simulation_payload(
         _simulate_rl(query, resistance_ohms, inductance_h, source_voltage_v, duration_s, steps, simulation_mode, initial_current_a)
     )
