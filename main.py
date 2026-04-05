@@ -125,6 +125,82 @@ ACADEMIC_HINTS = {
     "bibliography",
     "proposal",
 }
+ACADEMIC_GENERIC_TOKENS = {
+    "c",
+    "est",
+    "ce",
+    "un",
+    "une",
+    "dont",
+    "vais",
+    "veut",
+    "veux",
+    "faire",
+    "fais",
+    "plan",
+    "detaille",
+    "detailler",
+    "detaillé",
+    "détaillé",
+    "sujet",
+    "theme",
+    "thème",
+    "memoire",
+    "mémoire",
+    "these",
+    "thèse",
+    "thesis",
+    "tfe",
+    "pfe",
+    "travail",
+    "cycle",
+    "academique",
+    "académique",
+    "document",
+    "pdf",
+}
+ENGINEERING_TOPIC_TOKENS = {
+    "electrotechnique",
+    "electrical",
+    "engineering",
+    "energie",
+    "énergie",
+    "power",
+    "transformateur",
+    "transformateurs",
+    "transformer",
+    "relais",
+    "relay",
+    "protection",
+    "moteur",
+    "motor",
+    "machine",
+    "machines",
+    "microreseau",
+    "microgrid",
+    "reseau",
+    "réseau",
+    "qualite",
+    "qualité",
+    "harmonique",
+    "harmonic",
+    "commande",
+    "control",
+    "automate",
+    "automation",
+    "convertisseur",
+    "converter",
+    "inverter",
+    "onduleur",
+    "photovoltaique",
+    "solaire",
+    "renewable",
+    "renouvelable",
+    "triphase",
+    "triphasé",
+    "triphasée",
+    "grid",
+}
 THESIS_WORKFLOW_HINTS = {
     "workflow",
     "roadmap",
@@ -1224,6 +1300,8 @@ def _extract_academic_focus(query: str) -> str:
         "guide de recherche",
         "plan de these",
         "plan de thèse",
+        "plan detaille",
+        "plan détaillé",
         "tfe",
         "pfe",
         "memoire",
@@ -1254,6 +1332,86 @@ def _extract_academic_focus(query: str) -> str:
     if "quality" in lowered_query or "qualite" in lowered_query or "harmon" in lowered_query:
         return "qualite d energie et compensation"
     return cleaned or "ingenierie electrotechnique"
+
+
+def _extract_meaningful_topic_tokens(text: str) -> list[str]:
+    tokens = re.findall(r"[a-z0-9àâçéèêëîïôûùüÿñæœ]+", text.lower())
+    return [token for token in tokens if len(token) > 2 and token not in ACADEMIC_GENERIC_TOKENS]
+
+
+def _needs_academic_clarification(query: str, domain_focus: str) -> bool:
+    lowered_query = query.lower()
+    meaningful_query_tokens = _extract_meaningful_topic_tokens(lowered_query)
+    meaningful_focus_tokens = _extract_meaningful_topic_tokens(domain_focus)
+    has_engineering_signal = any(token in lowered_query for token in ENGINEERING_TOPIC_TOKENS)
+    has_subject_pattern = bool(re.search(r"\b(sur|about|on|for)\b", lowered_query))
+    if has_engineering_signal or has_subject_pattern:
+        return False
+    if len(meaningful_focus_tokens) >= 2:
+        return False
+    return len(meaningful_query_tokens) < 3
+
+
+def _build_academic_clarification_guidance(query: str, deliverable_type: str) -> dict[str, Any]:
+    return {
+        "status": "needs-input",
+        "source": "academic-assistant",
+        "query": query,
+        "normalized_query": _normalize_text(query),
+        "academic_level": _infer_academic_level(query),
+        "deliverable_type": deliverable_type,
+        "domain_focus": "a preciser",
+        "title_suggestions": [
+            "Donne d'abord le sujet exact ou le domaine technique du TFE",
+            "Ajoute ensuite la problematique ou l'objectif principal",
+            "Precise enfin si tu veux un plan, une bibliographie ou une methodologie",
+        ],
+        "problem_statement": (
+            "La demande academique est trop vague pour produire un cadrage fiable. "
+            "L'action GPT ne recoit pas automatiquement le contenu du PDF joint: elle ne voit que le texte du message transmis."
+        ),
+        "objectives": [
+            "Fournir le sujet exact ou le titre provisoire.",
+            "Donner la problematique, meme provisoire.",
+            "Indiquer le livrable attendu: plan detaille, bibliographie, methodologie ou workflow complet.",
+        ],
+        "research_questions": [
+            "Quel est le sujet technique exact ?",
+            "Quel probleme veux-tu traiter ?",
+            "Quel type d'aide attends-tu maintenant ?",
+        ],
+        "keywords": ["tfe", "memoire", "these", "sujet", "problematique"],
+        "search_queries": [],
+        "recommended_sources": [
+            "Si le sujet est deja connu, renvoie-le en texte dans la requete vers /gpt-tool.",
+        ],
+        "recommended_tools": [
+            "Le GPT peut lire le PDF dans la conversation, mais l'action externe a besoin d'un resume texte explicite.",
+        ],
+        "methodology": (
+            "Extrais du document le sujet, la problematique et les objectifs, puis relance l'action avec ces elements."
+        ),
+        "outline": [
+            "Sujet exact",
+            "Problematique",
+            "Objectif principal",
+            "Type de livrable attendu",
+        ],
+        "writing_guidelines": [
+            "Eviter les requetes vagues du type 'c'est un TFE'.",
+            "Toujours inclure le domaine technique ou le titre provisoire dans la requete.",
+        ],
+        "milestones": [
+            "1. Identifier le sujet dans le document.",
+            "2. Resumer en 2 a 4 lignes le probleme traite.",
+            "3. Relancer l'action avec une demande precise.",
+        ],
+        "originality_note": "Le cadrage doit partir d'un sujet technique explicite, pas d'une formulation generique.",
+        "next_steps": [
+            "Exemple: 'Plan detaille de TFE sur la qualite d'energie dans une installation industrielle'.",
+            "Exemple: 'Workflow complet de memoire sur la protection des relais numeriques'.",
+        ],
+    }
 
 
 def _generate_academic_titles(domain_focus: str) -> list[str]:
@@ -1294,6 +1452,8 @@ def _build_academic_assistant_payload(query: str) -> dict[str, Any]:
     academic_level = _infer_academic_level(normalized_query)
     deliverable_type = _infer_deliverable_type(normalized_query)
     domain_focus = _extract_academic_focus(normalized_query)
+    if _needs_academic_clarification(normalized_query, domain_focus):
+        return _build_academic_clarification_guidance(query, deliverable_type)
     title_suggestions = _generate_academic_titles(domain_focus)
 
     problem_statement = (
@@ -1662,11 +1822,94 @@ def _build_thesis_novelty_angle(domain_focus: str) -> str:
     return "Ancrer la contribution dans un cas d'usage electrotechnique realiste, avec des metriques claires et une comparaison honnete a l'etat de l'art."
 
 
+def _build_thesis_clarification_guidance(query: str, deliverable_type: str) -> dict[str, Any]:
+    normalized_query = _normalize_text(query)
+    return ThesisWorkflowResponse(
+        status="needs-input",
+        source="thesis-workflow",
+        query=query,
+        normalized_query=normalized_query,
+        academic_level=_infer_academic_level(normalized_query),
+        deliverable_type=deliverable_type,
+        domain_focus="a preciser",
+        proposed_topic="Sujet a preciser avant generation du workflow",
+        title_options=[
+            "Donne le sujet exact ou le titre provisoire",
+            "Ajoute la problematique ou l'objectif principal",
+            "Indique si tu veux un plan detaille, une methodologie ou un workflow complet",
+        ],
+        problem_statement=(
+            "Le workflow de these ou de TFE ne peut pas etre produit de maniere fiable sans sujet explicite. "
+            "Le PDF joint dans ChatGPT n'est pas transmis tel quel a l'action externe."
+        ),
+        novelty_angle="A definir apres identification du sujet et du gap technique reel.",
+        hypotheses=[
+            "Le sujet doit etre formule en texte dans la requete.",
+            "La problematique doit etre identifiable en une ou deux phrases.",
+        ],
+        objectives=[
+            "Recuperer le sujet exact depuis le document ou le message utilisateur.",
+            "Preciser la problematique et le type de livrable attendu.",
+            "Relancer ensuite la generation du workflow complet.",
+        ],
+        research_questions=[
+            "Quel est le sujet exact ?",
+            "Quel est le probleme technique traite ?",
+            "Quel livrable veux-tu maintenant ?",
+        ],
+        chapter_plan=[
+            ThesisChapter(
+                chapter_number=1,
+                title="Clarification du sujet",
+                objective="Identifier le titre, la problematique et le perimetre avant toute redaction detaillee.",
+                key_sections=["Sujet exact", "Problematique", "Perimetre", "Livrable attendu"],
+                expected_outputs=["Sujet reformule", "Question centrale", "Consignes pour la prochaine requete"],
+            )
+        ],
+        literature_strategy=LiteratureStrategy(
+            objective="Attendre la clarification du sujet avant de lancer une vraie strategie bibliographique.",
+            databases=[],
+            search_queries=[],
+            screening_criteria=[],
+            evidence_matrix=[],
+            watch_routine=[],
+        ),
+        methodology_blueprint=MethodologyBlueprint(
+            approach="Clarification d'entree avant generation du workflow complet.",
+            work_packages=["Extraire le sujet du document", "Resumer la problematique", "Relancer l'action avec un texte explicite"],
+            tools=["ChatGPT pour lire le PDF dans la conversation", "/gpt-tool pour le workflow une fois le sujet explicite"],
+            inputs=["Sujet exact", "Problematique", "Type de livrable"],
+            validation_metrics=["Sujet suffisamment precis pour produire un plan defendable"],
+            risk_controls=["Ne pas inventer un sujet a partir d'une requete trop vague"],
+        ),
+        writing_calendar=[
+            WritingMilestone(
+                phase="Clarification",
+                week_range="Immediate",
+                focus="Transformer le contenu du document en sujet et problematique explicites.",
+                deliverables=["Sujet reformule", "Problematique resumee", "Nouvelle requete exploitable"],
+            )
+        ],
+        quality_checklist=[
+            "Le sujet est explicite.",
+            "La problematique est explicite.",
+            "Le livrable attendu est explicite.",
+        ],
+        originality_note="Le workflow doit partir d'un sujet reel et explicite, pas d'une requete generique.",
+        next_actions=[
+            "Exemple: 'Plan detaille de TFE sur la protection des relais numeriques'.",
+            "Exemple: 'Workflow complet de memoire sur la qualite d energie dans une usine industrielle'.",
+        ],
+    ).model_dump()
+
+
 def _build_thesis_workflow_payload(query: str) -> dict[str, Any]:
     normalized_query = _normalize_text(query)
     academic_level = _infer_academic_level(normalized_query)
     deliverable_type = _infer_deliverable_type(normalized_query)
     domain_focus = _extract_academic_focus(normalized_query)
+    if _needs_academic_clarification(normalized_query, domain_focus):
+        return _build_thesis_clarification_guidance(query, deliverable_type)
     title_options = _generate_academic_titles(domain_focus)
     proposed_topic = title_options[0]
     novelty_angle = _build_thesis_novelty_angle(domain_focus)
@@ -3179,6 +3422,12 @@ def _build_arxiv_brief(payload: dict[str, Any]) -> str:
 
 
 def _build_academic_brief(payload: dict[str, Any]) -> str:
+    if payload.get("status") == "needs-input":
+        return (
+            "Le cadrage academique a besoin d'un sujet explicite. "
+            "L'action GPT ne recoit pas automatiquement le contenu du PDF joint: envoie le sujet, la problematique "
+            "ou un extrait texte avant de demander un plan ou une methodologie."
+        )
     titles = payload.get("title_suggestions", [])
     title_text = " ; ".join(titles[:3])
     return (
@@ -3190,6 +3439,12 @@ def _build_academic_brief(payload: dict[str, Any]) -> str:
 
 
 def _build_thesis_workflow_brief(payload: dict[str, Any]) -> str:
+    if payload.get("status") == "needs-input":
+        return (
+            "Le workflow academique a besoin d'un sujet explicite. "
+            "Le PDF joint n'est pas transmis tel quel a l'action externe: envoie le titre, la problematique "
+            "ou un resume texte avant de demander un plan detaille."
+        )
     proposed_topic = payload.get("proposed_topic", "le sujet demande")
     chapter_count = len(payload.get("chapter_plan", []))
     calendar_count = len(payload.get("writing_calendar", []))
@@ -3365,7 +3620,7 @@ def _build_gpt_tool_results(mode: str, data: dict[str, Any], fallback_answer: st
     return []
 
 
-def _compact_simulation_details(data: dict[str, Any], preview_points: int = 12) -> dict[str, Any]:
+def _compact_simulation_details(data: dict[str, Any], preview_points: int = 8) -> dict[str, Any]:
     series = data.get("series", []) or []
     safe_preview = max(0, min(preview_points, len(series)))
     return {
@@ -3383,6 +3638,84 @@ def _compact_simulation_details(data: dict[str, Any], preview_points: int = 12) 
         "count": data.get("count", len(series)),
         "series_preview": series[:safe_preview],
         "series_truncated": len(series) > safe_preview,
+    }
+
+
+def _compact_diagnosis_details(data: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "status": data.get("status", ""),
+        "source": data.get("source", ""),
+        "query": data.get("query", ""),
+        "normalized_query": data.get("normalized_query", ""),
+        "domain": data.get("domain", ""),
+        "system_family": data.get("system_family", ""),
+        "severity": data.get("severity", ""),
+        "symptom_summary": data.get("symptom_summary", ""),
+        "probable_causes": (data.get("probable_causes") or [])[:3],
+        "quick_checks": (data.get("quick_checks") or [])[:4],
+        "measurements_to_take": (data.get("measurements_to_take") or [])[:4],
+        "equations_to_check": (data.get("equations_to_check") or [])[:4],
+        "recommended_tools": (data.get("recommended_tools") or [])[:4],
+        "simulation_candidates": (data.get("simulation_candidates") or [])[:3],
+        "action_plan": (data.get("action_plan") or [])[:5],
+        "visual_support": (data.get("visual_support") or [])[:3],
+        "escalation_note": data.get("escalation_note", ""),
+    }
+
+
+def _compact_academic_details(data: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "status": data.get("status", ""),
+        "source": data.get("source", ""),
+        "query": data.get("query", ""),
+        "normalized_query": data.get("normalized_query", ""),
+        "academic_level": data.get("academic_level", ""),
+        "deliverable_type": data.get("deliverable_type", ""),
+        "domain_focus": data.get("domain_focus", ""),
+        "title_suggestions": (data.get("title_suggestions") or [])[:3],
+        "problem_statement": data.get("problem_statement", ""),
+        "objectives": (data.get("objectives") or [])[:4],
+        "research_questions": (data.get("research_questions") or [])[:4],
+        "keywords": (data.get("keywords") or [])[:6],
+        "search_queries": (data.get("search_queries") or [])[:4],
+        "recommended_sources": (data.get("recommended_sources") or [])[:4],
+        "recommended_tools": (data.get("recommended_tools") or [])[:4],
+        "methodology": data.get("methodology", ""),
+        "outline": (data.get("outline") or [])[:5],
+        "writing_guidelines": (data.get("writing_guidelines") or [])[:4],
+        "milestones": (data.get("milestones") or [])[:4],
+        "originality_note": data.get("originality_note", ""),
+        "next_steps": (data.get("next_steps") or [])[:4],
+    }
+
+
+def _compact_thesis_details(data: dict[str, Any]) -> dict[str, Any]:
+    chapter_plan = data.get("chapter_plan") or []
+    writing_calendar = data.get("writing_calendar") or []
+    return {
+        "status": data.get("status", ""),
+        "source": data.get("source", ""),
+        "query": data.get("query", ""),
+        "normalized_query": data.get("normalized_query", ""),
+        "academic_level": data.get("academic_level", ""),
+        "deliverable_type": data.get("deliverable_type", ""),
+        "domain_focus": data.get("domain_focus", ""),
+        "proposed_topic": data.get("proposed_topic", ""),
+        "title_options": (data.get("title_options") or [])[:3],
+        "problem_statement": data.get("problem_statement", ""),
+        "novelty_angle": data.get("novelty_angle", ""),
+        "hypotheses": (data.get("hypotheses") or [])[:3],
+        "objectives": (data.get("objectives") or [])[:4],
+        "research_questions": (data.get("research_questions") or [])[:4],
+        "chapter_plan_preview": chapter_plan[:3],
+        "chapter_plan_count": len(chapter_plan),
+        "literature_strategy": data.get("literature_strategy", {}),
+        "methodology_blueprint": data.get("methodology_blueprint", {}),
+        "writing_calendar_preview": writing_calendar[:3],
+        "writing_calendar_count": len(writing_calendar),
+        "quality_checklist": (data.get("quality_checklist") or [])[:5],
+        "originality_note": data.get("originality_note", ""),
+        "next_actions": (data.get("next_actions") or [])[:4],
     }
 
 
@@ -3437,6 +3770,15 @@ def _compact_gpt_tool_details(mode: str, data: dict[str, Any]) -> dict[str, Any]
             "warning": data.get("warning", ""),
             "top_results": (data.get("results") or [])[:3],
         }
+
+    if mode == "diagnosis":
+        return _compact_diagnosis_details(data)
+
+    if mode == "academic":
+        return _compact_academic_details(data)
+
+    if mode == "thesis":
+        return _compact_thesis_details(data)
 
     return data
 
