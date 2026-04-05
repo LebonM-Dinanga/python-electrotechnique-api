@@ -5904,6 +5904,20 @@ def action_calc(
 
 
 @app.get(
+    "/action-wolfram",
+    response_model=CalcActionResponse,
+    summary="Action Wolfram",
+    description="Alias explicite de l'action de calcul pour un usage WolframAlpha dedie dans le builder GPT.",
+)
+def action_wolfram(
+    query: str | None = Query(None, min_length=2, max_length=300, description="Question ou expression mathematique"),
+    input_text: str | None = Query(None, alias="input", min_length=2, max_length=300, description="Alias principal"),
+):
+    raw_query = _resolve_action_query(query, input_text)
+    return _build_calc_action_payload(raw_query)
+
+
+@app.get(
     "/action-research",
     response_model=ResearchActionResponse,
     summary="Action Recherche",
@@ -6018,6 +6032,18 @@ def openapi_calc(request: Request):
             title="ElectroGPT Calc Action API",
             description="Action specialisee pour le calcul scientifique.",
             path_names=["/action-calc"],
+        )
+    )
+
+
+@app.get("/openapi.wolfram.json", include_in_schema=False)
+def openapi_wolfram(request: Request):
+    return JSONResponse(
+        _build_action_openapi(
+            _get_base_url(request=request),
+            title="ElectroGPT Wolfram Action API",
+            description="Action specialisee pour le calcul scientifique via WolframAlpha.",
+            path_names=["/action-wolfram"],
         )
     )
 

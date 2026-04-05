@@ -11,7 +11,7 @@ Ne branche plus `ElectroGPT` sur une seule action monolithique.
 Branche plusieurs actions specialisees :
 
 - Zapier pour l'export Google Docs
-- ton proxy Wolfram existant pour le calcul si tu veux garder ce flux
+- une action Wolfram dediee pour le calcul
 - les actions ElectroGPT specialisees ci-dessous pour recherche, simulation, dashboard, diagnostic et academique
 
 Le schema monolithique suivant reste disponible, mais il doit etre considere comme un mode legacy :
@@ -26,12 +26,18 @@ Tu peux importer chaque action depuis une URL distincte.
 
 ### 1. Calcul scientifique
 
-Si tu gardes deja ton action Wolfram externe fiable, conserve-la.
+Tu as deux options :
 
-Sinon tu peux utiliser :
+Option A, sur ton propre domaine :
 
 ```text
-https://electrotechnique-gpt-tool.onrender.com/openapi.calc.json
+https://electrotechnique-gpt-tool.onrender.com/openapi.wolfram.json
+```
+
+Option B, si ton ancien proxy Workers etait plus fiable :
+
+```text
+ton ancienne action Wolfram externe
 ```
 
 ### 2. Recherche technique
@@ -107,7 +113,7 @@ Fonctionnalites recommandees :
 
 Dans `Configure` -> `Actions`, importe dans cet ordre :
 
-1. ton action Wolfram existante ou `openapi.calc.json`
+1. ton action Wolfram dediee via `openapi.wolfram.json` ou ton ancien proxy Wolfram
 2. `openapi.research.json`
 3. `openapi.simulation.json`
 4. `openapi.realtime.json`
@@ -126,7 +132,7 @@ Tu utilises plusieurs actions specialisees. Ta regle principale est simple: choi
 
 Priorite de selection des actions:
 - export vers Google Docs ou automatisation: utiliser Zapier uniquement si l'utilisateur demande explicitement exporter, enregistrer, envoyer ou pousser le resultat
-- calcul mathematique ou scientifique pur: utiliser l'action Wolfram ou l'action calc
+- calcul mathematique ou scientifique pur: utiliser l'action Wolfram dediee
 - recherche d'articles, bibliographie, etat de l'art, DOI, publications: utiliser l'action research
 - simulation electrotechnique numerique: utiliser l'action simulation
 - dashboard, streaming, courbe temps reel, visualisation live d'une simulation: utiliser l'action realtime
@@ -208,4 +214,10 @@ Schema legacy monolithique :
 
 ```text
 https://electrotechnique-gpt-tool.onrender.com/openapi.chatgpt.json
+```
+
+Action Wolfram dediee :
+
+```text
+https://electrotechnique-gpt-tool.onrender.com/openapi.wolfram.json
 ```

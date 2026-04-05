@@ -38,6 +38,7 @@ Le projet combine :
 - `GET /smart-query` : routeur intelligent riche pour GPT
 - `GET /gpt-tool` : endpoint minimal et stable pour ChatGPT Actions
 - `GET /action-calc` : action specialisee calcul
+- `GET /action-wolfram` : action specialisee Wolfram / calcul scientifique
 - `GET /action-research` : action specialisee recherche technique
 - `GET /action-simulation` : action specialisee simulation
 - `GET /action-realtime` : action specialisee dashboard temps reel
@@ -47,6 +48,7 @@ Le projet combine :
 - `GET /action-live` : action specialisee connecteurs live
 - `GET /openapi.chatgpt.json` : schema OpenAPI dedie a l'action
 - `GET /openapi.calc.json` : schema OpenAPI dedie au calcul
+- `GET /openapi.wolfram.json` : schema OpenAPI dedie a Wolfram / calcul
 - `GET /openapi.research.json` : schema OpenAPI dedie a la recherche
 - `GET /openapi.simulation.json` : schema OpenAPI dedie a la simulation
 - `GET /openapi.realtime.json` : schema OpenAPI dedie au dashboard temps reel
@@ -64,6 +66,7 @@ Le projet combine :
 - `render.yaml` : configuration Render
 - `openapi.chatgpt.json` : schema OpenAPI genere pour ChatGPT Actions
 - `openapi.calc.json` : schema OpenAPI specialise calcul
+- `openapi.wolfram.json` : schema OpenAPI specialise Wolfram / calcul
 - `openapi.research.json` : schema OpenAPI specialise recherche
 - `openapi.simulation.json` : schema OpenAPI specialise simulation
 - `openapi.realtime.json` : schema OpenAPI specialise dashboard temps reel
@@ -73,6 +76,7 @@ Le projet combine :
 - `openapi.live.json` : schema OpenAPI specialise connecteurs live
 - `ai-plugin.json` : manifeste plugin genere
 - `CHATGPT_ACTION_SETUP.md` : texte a coller dans le builder GPT
+- `ZAPIER_ACTION_SETUP.md` : regles de rebranchement de Zapier pour l'export
 - `RENDER_DEPLOYMENT.md` : guide de deploiement Render
 
 ## Installation locale
@@ -146,6 +150,7 @@ URLs d'import conseillees :
 
 ```text
 https://electrotechnique-gpt-tool.onrender.com/openapi.calc.json
+https://electrotechnique-gpt-tool.onrender.com/openapi.wolfram.json
 https://electrotechnique-gpt-tool.onrender.com/openapi.research.json
 https://electrotechnique-gpt-tool.onrender.com/openapi.simulation.json
 https://electrotechnique-gpt-tool.onrender.com/openapi.realtime.json
