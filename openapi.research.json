@@ -1,0 +1,278 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "ElectroGPT Research Action API",
+    "description": "Action specialisee pour la recherche d'articles techniques.",
+    "version": "2.4.2"
+  },
+  "servers": [
+    {
+      "url": "https://electrotechnique-gpt-tool.onrender.com",
+      "description": "Public HTTPS endpoint for ChatGPT Actions"
+    }
+  ],
+  "paths": {
+    "/action-research": {
+      "get": {
+        "summary": "Action Recherche",
+        "description": "Action ChatGPT specialisee pour la recherche d'articles techniques via arXiv/Crossref.",
+        "operationId": "action_research_action_research_get",
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 300
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Sujet de recherche technique",
+              "title": "Query"
+            },
+            "description": "Sujet de recherche technique"
+          },
+          {
+            "name": "input",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 300
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Alias principal",
+              "title": "Input"
+            },
+            "description": "Alias principal"
+          },
+          {
+            "name": "max_results",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 10,
+              "minimum": 1,
+              "description": "Nombre maximum de resultats",
+              "default": 3,
+              "title": "Max Results"
+            },
+            "description": "Nombre maximum de resultats"
+          },
+          {
+            "name": "auto_filter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Active le filtre electrotechnique automatique",
+              "default": true,
+              "title": "Auto Filter"
+            },
+            "description": "Active le filtre electrotechnique automatique"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResearchActionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "ResearchActionResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "answer": {
+            "type": "string",
+            "title": "Answer"
+          },
+          "next_step": {
+            "type": "string",
+            "title": "Next Step",
+            "default": ""
+          },
+          "error": {
+            "type": "string",
+            "title": "Error",
+            "default": ""
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider",
+            "default": ""
+          },
+          "effective_query": {
+            "type": "string",
+            "title": "Effective Query",
+            "default": ""
+          },
+          "domain_filter_applied": {
+            "type": "boolean",
+            "title": "Domain Filter Applied",
+            "default": false
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count",
+            "default": 0
+          },
+          "warning": {
+            "type": "string",
+            "title": "Warning",
+            "default": ""
+          },
+          "top_results": {
+            "items": {
+              "$ref": "#/components/schemas/GptToolResult"
+            },
+            "type": "array",
+            "title": "Top Results"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "source",
+          "query",
+          "answer"
+        ],
+        "title": "ResearchActionResponse"
+      },
+      "GptToolResult": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "default": ""
+          },
+          "snippet": {
+            "type": "string",
+            "title": "Snippet",
+            "default": ""
+          },
+          "link": {
+            "type": "string",
+            "title": "Link",
+            "default": ""
+          },
+          "published": {
+            "type": "string",
+            "title": "Published",
+            "default": ""
+          },
+          "authors": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Authors"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "title": "GptToolResult"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

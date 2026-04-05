@@ -1,0 +1,233 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "ElectroGPT Realtime Action API",
+    "description": "Action specialisee pour le dashboard temps reel et le streaming SSE.",
+    "version": "2.4.2"
+  },
+  "servers": [
+    {
+      "url": "https://electrotechnique-gpt-tool.onrender.com",
+      "description": "Public HTTPS endpoint for ChatGPT Actions"
+    }
+  ],
+  "paths": {
+    "/action-realtime": {
+      "get": {
+        "summary": "Action Dashboard Temps Reel",
+        "description": "Action ChatGPT specialisee pour obtenir un dashboard temps reel et un flux SSE externes.",
+        "operationId": "action_realtime_action_realtime_get",
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 500
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Demande de dashboard ou de streaming",
+              "title": "Query"
+            },
+            "description": "Demande de dashboard ou de streaming"
+          },
+          {
+            "name": "input",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 500
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Alias principal",
+              "title": "Input"
+            },
+            "description": "Alias principal"
+          },
+          {
+            "name": "pace_ms",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 2000,
+              "minimum": 20,
+              "description": "Cadence du flux SSE",
+              "default": 120,
+              "title": "Pace Ms"
+            },
+            "description": "Cadence du flux SSE"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RealtimeActionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "RealtimeActionResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "answer": {
+            "type": "string",
+            "title": "Answer"
+          },
+          "next_step": {
+            "type": "string",
+            "title": "Next Step",
+            "default": ""
+          },
+          "error": {
+            "type": "string",
+            "title": "Error",
+            "default": ""
+          },
+          "dashboard_url": {
+            "type": "string",
+            "title": "Dashboard Url",
+            "default": ""
+          },
+          "stream_url": {
+            "type": "string",
+            "title": "Stream Url",
+            "default": ""
+          },
+          "recommended_signals": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Recommended Signals"
+          },
+          "pace_ms": {
+            "type": "integer",
+            "title": "Pace Ms",
+            "default": 0
+          },
+          "simulation_summary": {
+            "type": "string",
+            "title": "Simulation Summary",
+            "default": ""
+          },
+          "simulation_parameters": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Simulation Parameters"
+          },
+          "simulation_metrics": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Simulation Metrics"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "source",
+          "query",
+          "answer"
+        ],
+        "title": "RealtimeActionResponse"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

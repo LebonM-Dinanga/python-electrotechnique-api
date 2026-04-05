@@ -1,0 +1,238 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "ElectroGPT Simulation Action API",
+    "description": "Action specialisee pour la simulation electrotechnique compacte.",
+    "version": "2.4.2"
+  },
+  "servers": [
+    {
+      "url": "https://electrotechnique-gpt-tool.onrender.com",
+      "description": "Public HTTPS endpoint for ChatGPT Actions"
+    }
+  ],
+  "paths": {
+    "/action-simulation": {
+      "get": {
+        "summary": "Action Simulation",
+        "description": "Action ChatGPT specialisee pour les simulations electrotechniques compactes avec liens de visualisation.",
+        "operationId": "action_simulation_action_simulation_get",
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 500
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Requete de simulation",
+              "title": "Query"
+            },
+            "description": "Requete de simulation"
+          },
+          {
+            "name": "input",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 500
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Alias principal",
+              "title": "Input"
+            },
+            "description": "Alias principal"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimulationActionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "SimulationActionResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "answer": {
+            "type": "string",
+            "title": "Answer"
+          },
+          "next_step": {
+            "type": "string",
+            "title": "Next Step",
+            "default": ""
+          },
+          "error": {
+            "type": "string",
+            "title": "Error",
+            "default": ""
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "default": ""
+          },
+          "simulation_mode": {
+            "type": "string",
+            "title": "Simulation Mode",
+            "default": ""
+          },
+          "resource_url": {
+            "type": "string",
+            "title": "Resource Url",
+            "default": ""
+          },
+          "stream_url": {
+            "type": "string",
+            "title": "Stream Url",
+            "default": ""
+          },
+          "plot_url": {
+            "type": "string",
+            "title": "Plot Url",
+            "default": ""
+          },
+          "parameters": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Parameters"
+          },
+          "metrics": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metrics"
+          },
+          "interpretation_preview": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Interpretation Preview"
+          },
+          "recommended_signals": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Recommended Signals"
+          },
+          "minimum_inputs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Minimum Inputs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "source",
+          "query",
+          "answer"
+        ],
+        "title": "SimulationActionResponse"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

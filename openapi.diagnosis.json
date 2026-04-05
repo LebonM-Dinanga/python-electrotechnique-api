@@ -1,0 +1,220 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "ElectroGPT Diagnosis Action API",
+    "description": "Action specialisee pour le diagnostic d'ingenierie.",
+    "version": "2.4.2"
+  },
+  "servers": [
+    {
+      "url": "https://electrotechnique-gpt-tool.onrender.com",
+      "description": "Public HTTPS endpoint for ChatGPT Actions"
+    }
+  ],
+  "paths": {
+    "/action-diagnosis": {
+      "get": {
+        "summary": "Action Diagnostic",
+        "description": "Action ChatGPT specialisee pour l'analyse de panne, diagnostic et troubleshooting d'ingenierie.",
+        "operationId": "action_diagnosis_action_diagnosis_get",
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 500
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Description du probleme technique",
+              "title": "Query"
+            },
+            "description": "Description du probleme technique"
+          },
+          {
+            "name": "input",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 500
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Alias principal",
+              "title": "Input"
+            },
+            "description": "Alias principal"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiagnosisActionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "DiagnosisActionResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "answer": {
+            "type": "string",
+            "title": "Answer"
+          },
+          "next_step": {
+            "type": "string",
+            "title": "Next Step",
+            "default": ""
+          },
+          "error": {
+            "type": "string",
+            "title": "Error",
+            "default": ""
+          },
+          "severity": {
+            "type": "string",
+            "title": "Severity",
+            "default": ""
+          },
+          "symptom_summary": {
+            "type": "string",
+            "title": "Symptom Summary",
+            "default": ""
+          },
+          "probable_causes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Probable Causes"
+          },
+          "measurements_to_take": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Measurements To Take"
+          },
+          "equations_to_check": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Equations To Check"
+          },
+          "action_plan": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Action Plan"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "source",
+          "query",
+          "answer"
+        ],
+        "title": "DiagnosisActionResponse"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

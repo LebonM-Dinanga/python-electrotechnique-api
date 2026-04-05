@@ -1,0 +1,224 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "ElectroGPT Live Action API",
+    "description": "Action specialisee pour MQTT, Modbus, WebSocket et HTTP.",
+    "version": "2.4.2"
+  },
+  "servers": [
+    {
+      "url": "https://electrotechnique-gpt-tool.onrender.com",
+      "description": "Public HTTPS endpoint for ChatGPT Actions"
+    }
+  ],
+  "paths": {
+    "/action-live": {
+      "get": {
+        "summary": "Action Connecteurs Live",
+        "description": "Action ChatGPT specialisee pour MQTT, Modbus, WebSocket, HTTP ingest et dashboards live.",
+        "operationId": "action_live_action_live_get",
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 400
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Besoin d'integration live",
+              "title": "Query"
+            },
+            "description": "Besoin d'integration live"
+          },
+          {
+            "name": "input",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 400
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Alias principal",
+              "title": "Input"
+            },
+            "description": "Alias principal"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveActionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "LiveActionResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "answer": {
+            "type": "string",
+            "title": "Answer"
+          },
+          "next_step": {
+            "type": "string",
+            "title": "Next Step",
+            "default": ""
+          },
+          "error": {
+            "type": "string",
+            "title": "Error",
+            "default": ""
+          },
+          "dashboard_url": {
+            "type": "string",
+            "title": "Dashboard Url",
+            "default": ""
+          },
+          "stream_url": {
+            "type": "string",
+            "title": "Stream Url",
+            "default": ""
+          },
+          "http_ingest_url": {
+            "type": "string",
+            "title": "Http Ingest Url",
+            "default": ""
+          },
+          "websocket_ingest_url_template": {
+            "type": "string",
+            "title": "Websocket Ingest Url Template",
+            "default": ""
+          },
+          "websocket_watch_url_template": {
+            "type": "string",
+            "title": "Websocket Watch Url Template",
+            "default": ""
+          },
+          "mqtt_status": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Mqtt Status"
+          },
+          "modbus_example_url": {
+            "type": "string",
+            "title": "Modbus Example Url",
+            "default": ""
+          },
+          "next_steps": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Next Steps"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "source",
+          "query",
+          "answer"
+        ],
+        "title": "LiveActionResponse"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

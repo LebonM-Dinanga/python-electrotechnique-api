@@ -37,7 +37,23 @@ Le projet combine :
 - `GET /research` : combine les recherches utiles pour une question technique
 - `GET /smart-query` : routeur intelligent riche pour GPT
 - `GET /gpt-tool` : endpoint minimal et stable pour ChatGPT Actions
+- `GET /action-calc` : action specialisee calcul
+- `GET /action-research` : action specialisee recherche technique
+- `GET /action-simulation` : action specialisee simulation
+- `GET /action-realtime` : action specialisee dashboard temps reel
+- `GET /action-diagnosis` : action specialisee diagnostic
+- `GET /action-academic` : action specialisee cadrage academique
+- `GET /action-thesis` : action specialisee workflow TFE / these
+- `GET /action-live` : action specialisee connecteurs live
 - `GET /openapi.chatgpt.json` : schema OpenAPI dedie a l'action
+- `GET /openapi.calc.json` : schema OpenAPI dedie au calcul
+- `GET /openapi.research.json` : schema OpenAPI dedie a la recherche
+- `GET /openapi.simulation.json` : schema OpenAPI dedie a la simulation
+- `GET /openapi.realtime.json` : schema OpenAPI dedie au dashboard temps reel
+- `GET /openapi.diagnosis.json` : schema OpenAPI dedie au diagnostic
+- `GET /openapi.academic.json` : schema OpenAPI dedie au cadrage academique
+- `GET /openapi.thesis.json` : schema OpenAPI dedie au workflow academique
+- `GET /openapi.live.json` : schema OpenAPI dedie aux connecteurs live
 - `GET /.well-known/ai-plugin.json` : manifeste plugin legacy
 - `GET /legal` : page de confidentialite simple
 
@@ -47,6 +63,14 @@ Le projet combine :
 - `requirements.txt` : dependances Python
 - `render.yaml` : configuration Render
 - `openapi.chatgpt.json` : schema OpenAPI genere pour ChatGPT Actions
+- `openapi.calc.json` : schema OpenAPI specialise calcul
+- `openapi.research.json` : schema OpenAPI specialise recherche
+- `openapi.simulation.json` : schema OpenAPI specialise simulation
+- `openapi.realtime.json` : schema OpenAPI specialise dashboard temps reel
+- `openapi.diagnosis.json` : schema OpenAPI specialise diagnostic
+- `openapi.academic.json` : schema OpenAPI specialise cadrage academique
+- `openapi.thesis.json` : schema OpenAPI specialise workflow these
+- `openapi.live.json` : schema OpenAPI specialise connecteurs live
 - `ai-plugin.json` : manifeste plugin genere
 - `CHATGPT_ACTION_SETUP.md` : texte a coller dans le builder GPT
 - `RENDER_DEPLOYMENT.md` : guide de deploiement Render
@@ -113,6 +137,25 @@ http://127.0.0.1:8000/docs
 ```
 
 ## Exemples d'utilisation
+
+## ChatGPT Actions recommandees
+
+Le mode monolithique `/gpt-tool` reste disponible, mais le mode recommande pour le builder GPT est maintenant le mode multi-actions.
+
+URLs d'import conseillees :
+
+```text
+https://electrotechnique-gpt-tool.onrender.com/openapi.calc.json
+https://electrotechnique-gpt-tool.onrender.com/openapi.research.json
+https://electrotechnique-gpt-tool.onrender.com/openapi.simulation.json
+https://electrotechnique-gpt-tool.onrender.com/openapi.realtime.json
+https://electrotechnique-gpt-tool.onrender.com/openapi.diagnosis.json
+https://electrotechnique-gpt-tool.onrender.com/openapi.academic.json
+https://electrotechnique-gpt-tool.onrender.com/openapi.thesis.json
+https://electrotechnique-gpt-tool.onrender.com/openapi.live.json
+```
+
+La procedure complete a coller dans le builder GPT est documentee dans [CHATGPT_ACTION_SETUP.md](D:/electrotechnique/python-electrotechnique-api/CHATGPT_ACTION_SETUP.md).
 
 ### Calcul scientifique
 

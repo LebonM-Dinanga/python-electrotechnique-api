@@ -598,6 +598,94 @@ class GptToolResponse(BaseModel):
     error: str = ""
 
 
+class ActionBaseResponse(BaseModel):
+    status: str
+    source: str
+    query: str
+    answer: str
+    next_step: str = ""
+    error: str = ""
+
+
+class CalcActionResponse(ActionBaseResponse):
+    result: str = ""
+
+
+class ResearchActionResponse(ActionBaseResponse):
+    provider: str = ""
+    effective_query: str = ""
+    domain_filter_applied: bool = False
+    count: int = 0
+    warning: str = ""
+    top_results: list[GptToolResult] = Field(default_factory=list)
+
+
+class SimulationActionResponse(ActionBaseResponse):
+    kind: str = ""
+    simulation_mode: str = ""
+    resource_url: str = ""
+    stream_url: str = ""
+    plot_url: str = ""
+    parameters: dict[str, Any] = Field(default_factory=dict)
+    metrics: dict[str, Any] = Field(default_factory=dict)
+    interpretation_preview: list[str] = Field(default_factory=list)
+    recommended_signals: list[str] = Field(default_factory=list)
+    minimum_inputs: list[str] = Field(default_factory=list)
+
+
+class RealtimeActionResponse(ActionBaseResponse):
+    dashboard_url: str = ""
+    stream_url: str = ""
+    recommended_signals: list[str] = Field(default_factory=list)
+    pace_ms: int = 0
+    simulation_summary: str = ""
+    simulation_parameters: dict[str, Any] = Field(default_factory=dict)
+    simulation_metrics: dict[str, Any] = Field(default_factory=dict)
+
+
+class DiagnosisActionResponse(ActionBaseResponse):
+    severity: str = ""
+    symptom_summary: str = ""
+    probable_causes: list[str] = Field(default_factory=list)
+    measurements_to_take: list[str] = Field(default_factory=list)
+    equations_to_check: list[str] = Field(default_factory=list)
+    action_plan: list[str] = Field(default_factory=list)
+
+
+class AcademicActionResponse(ActionBaseResponse):
+    academic_level: str = ""
+    deliverable_type: str = ""
+    domain_focus: str = ""
+    title_suggestions: list[str] = Field(default_factory=list)
+    problem_statement: str = ""
+    objectives: list[str] = Field(default_factory=list)
+    research_questions: list[str] = Field(default_factory=list)
+    methodology_summary: str = ""
+
+
+class ThesisActionResponse(ActionBaseResponse):
+    academic_level: str = ""
+    deliverable_type: str = ""
+    domain_focus: str = ""
+    proposed_topic: str = ""
+    novelty_angle: str = ""
+    chapter_plan_preview: list[dict[str, Any]] = Field(default_factory=list)
+    literature_strategy: dict[str, Any] = Field(default_factory=dict)
+    methodology_blueprint: dict[str, Any] = Field(default_factory=dict)
+    next_actions: list[str] = Field(default_factory=list)
+
+
+class LiveActionResponse(ActionBaseResponse):
+    dashboard_url: str = ""
+    stream_url: str = ""
+    http_ingest_url: str = ""
+    websocket_ingest_url_template: str = ""
+    websocket_watch_url_template: str = ""
+    mqtt_status: dict[str, Any] = Field(default_factory=dict)
+    modbus_example_url: str = ""
+    next_steps: list[str] = Field(default_factory=list)
+
+
 class VisualizationAsset(BaseModel):
     title: str
     kind: str
@@ -4005,6 +4093,277 @@ def _to_gpt_tool_response(smart_payload: dict[str, Any]) -> dict[str, Any]:
     ).model_dump()
 
 
+def _resolve_action_query(query: str | None, input_text: str | None) -> str:
+    raw_query = _get_text_param(query) or _get_text_param(input_text)
+    if not raw_query:
+        raise HTTPException(
+            status_code=422,
+            detail="Fournis un parametre 'query' ou 'input'.",
+        )
+    return raw_query
+
+
+def _build_calc_action_payload(query: str) -> dict[str, Any]:
+    try:
+        data = _fetch_wolfram_result(query)
+        result = data.get("result", "")
+        return CalcActionResponse(
+            status="ok",
+            source=data.get("source", "wolframalpha"),
+            query=query,
+            answer=result,
+            next_step="Utiliser directement le resultat du calcul ou reformuler pour un calcul plus cible.",
+            result=result,
+        ).model_dump()
+    except HTTPException as exc:
+        return CalcActionResponse(
+            status="error",
+            source="wolframalpha",
+            query=query,
+            answer="Le calcul externe a echoue.",
+            next_step="Verifier la formulation mathematique ou reessayer avec une expression plus simple.",
+            error=str(exc.detail),
+            result="",
+        ).model_dump()
+
+
+def _build_research_action_payload(query: str, max_results: int, auto_filter: bool) -> dict[str, Any]:
+    try:
+        data = _fetch_arxiv_results(query, max_results, "relevance", auto_filter)
+        top_results = [
+            GptToolResult(
+                title=item.get("title", ""),
+                snippet=_truncate_text(item.get("summary", ""), 220),
+                link=item.get("link", ""),
+                published=item.get("published", ""),
+                authors=(item.get("authors") or [])[:4],
+                provider=item.get("provider", data.get("provider", "arxiv")),
+            ).model_dump()
+            for item in (data.get("results") or [])[:3]
+        ]
+        return ResearchActionResponse(
+            status=data.get("status", "ok"),
+            source=data.get("source", "arxiv"),
+            query=query,
+            answer=_build_arxiv_brief(data),
+            next_step="Lire les meilleurs articles, puis demander un resume cible ou une comparaison methodologique.",
+            provider=data.get("provider", "arxiv"),
+            effective_query=data.get("effective_query", query),
+            domain_filter_applied=bool(data.get("domain_filter_applied", False)),
+            count=int(data.get("count", len(top_results))),
+            warning=data.get("warning", ""),
+            top_results=top_results,
+        ).model_dump()
+    except HTTPException as exc:
+        return ResearchActionResponse(
+            status="error",
+            source="arxiv",
+            query=query,
+            answer="La recherche technique a echoue.",
+            next_step="Reformuler le sujet ou reduire le nombre de resultats demandes.",
+            error=str(exc.detail),
+            provider="arxiv",
+            effective_query=query,
+            domain_filter_applied=bool(auto_filter),
+            count=0,
+            warning="",
+            top_results=[],
+        ).model_dump()
+
+
+def _build_simulation_action_payload(query: str) -> dict[str, Any]:
+    data = _simulate_from_query(query)
+    compact = _compact_simulation_details(data)
+    dashboard_url = compact.get("dashboard_url", "")
+    plot_url = compact.get("plot_url", "")
+    next_step = compact.get("next_step", "")
+    if not next_step:
+        if data.get("status") == "needs-input":
+            next_step = "Fournir les parametres minimaux demandes avant de relancer la simulation."
+        elif dashboard_url:
+            next_step = "Ouvrir le dashboard temps reel ou le plot SVG pour visualiser la reponse."
+        elif plot_url:
+            next_step = "Ouvrir le plot SVG pour lire la courbe principale."
+        else:
+            next_step = "Utiliser les metriques et relancer avec des parametres plus precis si necessaire."
+
+    return SimulationActionResponse(
+        status=data.get("status", "ok"),
+        source=data.get("source", "simulation-engine"),
+        query=query,
+        answer=data.get("summary", ""),
+        next_step=next_step,
+        error=data.get("error", ""),
+        kind=compact.get("kind", ""),
+        simulation_mode=compact.get("simulation_mode", ""),
+        resource_url=dashboard_url,
+        stream_url=compact.get("stream_url", ""),
+        plot_url=plot_url,
+        parameters=compact.get("parameters", {}),
+        metrics=compact.get("metrics", {}),
+        interpretation_preview=compact.get("interpretation_preview", []),
+        recommended_signals=compact.get("recommended_signals", []),
+        minimum_inputs=compact.get("minimum_inputs", []),
+    ).model_dump()
+
+
+def _build_realtime_action_payload(query: str, pace_ms: int) -> dict[str, Any]:
+    data = _build_realtime_dashboard_payload(query, pace_ms=pace_ms)
+    simulation = data.get("simulation", {}) if isinstance(data.get("simulation"), dict) else {}
+    return RealtimeActionResponse(
+        status=data.get("status", "ok"),
+        source=data.get("source", "realtime-dashboard"),
+        query=query,
+        answer=_build_realtime_brief(data),
+        next_step="Ouvrir dashboard_url dans le navigateur. Utiliser stream_url pour le flux SSE.",
+        error=data.get("error", ""),
+        dashboard_url=data.get("dashboard_url", ""),
+        stream_url=data.get("stream_url", ""),
+        recommended_signals=(data.get("recommended_signals") or [])[:4],
+        pace_ms=int(data.get("pace_ms", pace_ms)),
+        simulation_summary=simulation.get("summary", ""),
+        simulation_parameters=simulation.get("parameters", {}) if isinstance(simulation, dict) else {},
+        simulation_metrics=simulation.get("metrics", {}) if isinstance(simulation, dict) else {},
+    ).model_dump()
+
+
+def _build_diagnosis_action_payload(query: str) -> dict[str, Any]:
+    data = _build_engineering_diagnosis_payload(query)
+    compact = _compact_diagnosis_details(data)
+    action_plan = compact.get("action_plan", [])
+    return DiagnosisActionResponse(
+        status=data.get("status", "ok"),
+        source=data.get("source", "engineering-diagnosis"),
+        query=query,
+        answer=compact.get("symptom_summary", data.get("symptom_summary", "")),
+        next_step=action_plan[0] if action_plan else "Commencer par les mesures et controles prioritaires.",
+        error=data.get("error", ""),
+        severity=compact.get("severity", ""),
+        symptom_summary=compact.get("symptom_summary", ""),
+        probable_causes=compact.get("probable_causes", []),
+        measurements_to_take=compact.get("measurements_to_take", []),
+        equations_to_check=compact.get("equations_to_check", []),
+        action_plan=action_plan,
+    ).model_dump()
+
+
+def _build_academic_action_payload(query: str) -> dict[str, Any]:
+    data = _build_academic_assistant_payload(query)
+    compact = _compact_academic_details(data)
+    next_steps = compact.get("next_steps", [])
+    return AcademicActionResponse(
+        status=data.get("status", "ok"),
+        source=data.get("source", "academic-assistant"),
+        query=query,
+        answer=_build_academic_brief(data),
+        next_step=next_steps[0] if next_steps else "Preciser le sujet et le livrable attendu.",
+        error=data.get("error", ""),
+        academic_level=compact.get("academic_level", ""),
+        deliverable_type=compact.get("deliverable_type", ""),
+        domain_focus=compact.get("domain_focus", ""),
+        title_suggestions=compact.get("title_suggestions", []),
+        problem_statement=compact.get("problem_statement", ""),
+        objectives=compact.get("objectives", []),
+        research_questions=compact.get("research_questions", []),
+        methodology_summary=compact.get("methodology_summary", ""),
+    ).model_dump()
+
+
+def _build_thesis_action_payload(query: str) -> dict[str, Any]:
+    data = _build_thesis_workflow_payload(query)
+    compact = _compact_thesis_details(data)
+    next_actions = compact.get("next_actions", [])
+    return ThesisActionResponse(
+        status=data.get("status", "ok"),
+        source=data.get("source", "thesis-workflow"),
+        query=query,
+        answer=_build_thesis_workflow_brief(data),
+        next_step=next_actions[0] if next_actions else "Valider le sujet et le perimetre avant de rediger.",
+        error=data.get("error", ""),
+        academic_level=compact.get("academic_level", ""),
+        deliverable_type=compact.get("deliverable_type", ""),
+        domain_focus=compact.get("domain_focus", ""),
+        proposed_topic=compact.get("proposed_topic", ""),
+        novelty_angle=compact.get("novelty_angle", ""),
+        chapter_plan_preview=compact.get("chapter_plan_preview", []),
+        literature_strategy=compact.get("literature_strategy", {}),
+        methodology_blueprint=compact.get("methodology_blueprint", {}),
+        next_actions=next_actions,
+    ).model_dump()
+
+
+def _build_live_action_payload(query: str, base_url: str) -> dict[str, Any]:
+    data = _build_live_connector_payload(query, base_url)
+    next_steps = (data.get("next_steps") or [])[:4]
+    return LiveActionResponse(
+        status=data.get("status", "ok"),
+        source=data.get("source", "live-connectors"),
+        query=query,
+        answer=_build_live_brief(data),
+        next_step=next_steps[0] if next_steps else "Choisir un canal logique puis ouvrir le dashboard live.",
+        error=data.get("error", ""),
+        dashboard_url=data.get("dashboard_url", ""),
+        stream_url=data.get("stream_url", ""),
+        http_ingest_url=data.get("http_ingest_url", ""),
+        websocket_ingest_url_template=data.get("websocket_ingest_url_template", ""),
+        websocket_watch_url_template=data.get("websocket_watch_url_template", ""),
+        mqtt_status=data.get("mqtt_status", {}),
+        modbus_example_url=data.get("modbus_example_url", ""),
+        next_steps=next_steps,
+    ).model_dump()
+
+
+def _collect_openapi_schema_refs(node: Any, refs: set[str]) -> None:
+    if isinstance(node, dict):
+        ref_value = node.get("$ref")
+        if isinstance(ref_value, str) and ref_value.startswith("#/components/schemas/"):
+            refs.add(ref_value.rsplit("/", 1)[-1])
+        for value in node.values():
+            _collect_openapi_schema_refs(value, refs)
+    elif isinstance(node, list):
+        for item in node:
+            _collect_openapi_schema_refs(item, refs)
+
+
+def _build_action_openapi(server_url: str, *, title: str, description: str, path_names: list[str]) -> dict[str, Any]:
+    full_spec = json.loads(json.dumps(app.openapi()))
+    filtered_paths = {path: full_spec["paths"][path] for path in path_names if path in full_spec.get("paths", {})}
+    refs_to_keep: set[str] = set()
+    _collect_openapi_schema_refs(filtered_paths, refs_to_keep)
+    kept_schemas: dict[str, Any] = {}
+
+    while refs_to_keep:
+        schema_name = refs_to_keep.pop()
+        if schema_name in kept_schemas:
+            continue
+        schema = full_spec.get("components", {}).get("schemas", {}).get(schema_name)
+        if schema is None:
+            continue
+        kept_schemas[schema_name] = schema
+        nested_refs: set[str] = set()
+        _collect_openapi_schema_refs(schema, nested_refs)
+        refs_to_keep.update(nested_refs - set(kept_schemas))
+
+    spec = {
+        "openapi": "3.1.0",
+        "info": {
+            "title": title,
+            "description": description,
+            "version": app.version,
+        },
+        "servers": [
+            {
+                "url": server_url,
+                "description": "Public HTTPS endpoint for ChatGPT Actions",
+            }
+        ],
+        "paths": filtered_paths,
+    }
+    if kept_schemas:
+        spec["components"] = {"schemas": kept_schemas}
+    return spec
+
+
 def _get_base_url(request: Request | None = None, override: str | None = None) -> str:
     if override:
         return override.rstrip("/")
@@ -5530,9 +5889,221 @@ def gpt_tool(
         ).model_dump()
 
 
+@app.get(
+    "/action-calc",
+    response_model=CalcActionResponse,
+    summary="Action Calcul",
+    description="Action ChatGPT specialisee pour le calcul scientifique et les requetes WolframAlpha.",
+)
+def action_calc(
+    query: str | None = Query(None, min_length=2, max_length=300, description="Question ou expression mathematique"),
+    input_text: str | None = Query(None, alias="input", min_length=2, max_length=300, description="Alias principal"),
+):
+    raw_query = _resolve_action_query(query, input_text)
+    return _build_calc_action_payload(raw_query)
+
+
+@app.get(
+    "/action-research",
+    response_model=ResearchActionResponse,
+    summary="Action Recherche",
+    description="Action ChatGPT specialisee pour la recherche d'articles techniques via arXiv/Crossref.",
+)
+def action_research(
+    query: str | None = Query(None, min_length=2, max_length=300, description="Sujet de recherche technique"),
+    input_text: str | None = Query(None, alias="input", min_length=2, max_length=300, description="Alias principal"),
+    max_results: int = Query(3, ge=1, le=10, description="Nombre maximum de resultats"),
+    auto_filter: bool = Query(True, description="Active le filtre electrotechnique automatique"),
+):
+    raw_query = _resolve_action_query(query, input_text)
+    return _build_research_action_payload(raw_query, _get_int_param(max_results, 3), _get_bool_param(auto_filter, True))
+
+
+@app.get(
+    "/action-simulation",
+    response_model=SimulationActionResponse,
+    summary="Action Simulation",
+    description="Action ChatGPT specialisee pour les simulations electrotechniques compactes avec liens de visualisation.",
+)
+def action_simulation(
+    query: str | None = Query(None, min_length=2, max_length=500, description="Requete de simulation"),
+    input_text: str | None = Query(None, alias="input", min_length=2, max_length=500, description="Alias principal"),
+):
+    raw_query = _resolve_action_query(query, input_text)
+    return _build_simulation_action_payload(raw_query)
+
+
+@app.get(
+    "/action-realtime",
+    response_model=RealtimeActionResponse,
+    summary="Action Dashboard Temps Reel",
+    description="Action ChatGPT specialisee pour obtenir un dashboard temps reel et un flux SSE externes.",
+)
+def action_realtime(
+    query: str | None = Query(None, min_length=2, max_length=500, description="Demande de dashboard ou de streaming"),
+    input_text: str | None = Query(None, alias="input", min_length=2, max_length=500, description="Alias principal"),
+    pace_ms: int = Query(120, ge=20, le=2000, description="Cadence du flux SSE"),
+):
+    raw_query = _resolve_action_query(query, input_text)
+    return _build_realtime_action_payload(raw_query, pace_ms=pace_ms)
+
+
+@app.get(
+    "/action-diagnosis",
+    response_model=DiagnosisActionResponse,
+    summary="Action Diagnostic",
+    description="Action ChatGPT specialisee pour l'analyse de panne, diagnostic et troubleshooting d'ingenierie.",
+)
+def action_diagnosis(
+    query: str | None = Query(None, min_length=2, max_length=500, description="Description du probleme technique"),
+    input_text: str | None = Query(None, alias="input", min_length=2, max_length=500, description="Alias principal"),
+):
+    raw_query = _resolve_action_query(query, input_text)
+    return _build_diagnosis_action_payload(raw_query)
+
+
+@app.get(
+    "/action-academic",
+    response_model=AcademicActionResponse,
+    summary="Action Academique",
+    description="Action ChatGPT specialisee pour cadrer un TFE, memoire ou besoin academique.",
+)
+def action_academic(
+    query: str | None = Query(None, min_length=2, max_length=400, description="Sujet ou besoin academique"),
+    input_text: str | None = Query(None, alias="input", min_length=2, max_length=400, description="Alias principal"),
+):
+    raw_query = _resolve_action_query(query, input_text)
+    return _build_academic_action_payload(raw_query)
+
+
+@app.get(
+    "/action-thesis",
+    response_model=ThesisActionResponse,
+    summary="Action Workflow These",
+    description="Action ChatGPT specialisee pour le workflow complet de TFE, memoire ou these.",
+)
+def action_thesis(
+    query: str | None = Query(None, min_length=2, max_length=500, description="Sujet ou besoin de workflow academique"),
+    input_text: str | None = Query(None, alias="input", min_length=2, max_length=500, description="Alias principal"),
+):
+    raw_query = _resolve_action_query(query, input_text)
+    return _build_thesis_action_payload(raw_query)
+
+
+@app.get(
+    "/action-live",
+    response_model=LiveActionResponse,
+    summary="Action Connecteurs Live",
+    description="Action ChatGPT specialisee pour MQTT, Modbus, WebSocket, HTTP ingest et dashboards live.",
+)
+def action_live(
+    request: Request,
+    query: str | None = Query(None, min_length=2, max_length=400, description="Besoin d'integration live"),
+    input_text: str | None = Query(None, alias="input", min_length=2, max_length=400, description="Alias principal"),
+):
+    raw_query = _get_text_param(query) or _get_text_param(input_text) or "integration live capteurs et automate"
+    return _build_live_action_payload(raw_query, _get_base_url(request=request))
+
+
 @app.get("/openapi.chatgpt.json", include_in_schema=False)
 def chatgpt_action_openapi(request: Request):
     return JSONResponse(_build_chatgpt_action_openapi(_get_base_url(request=request)))
+
+
+@app.get("/openapi.calc.json", include_in_schema=False)
+def openapi_calc(request: Request):
+    return JSONResponse(
+        _build_action_openapi(
+            _get_base_url(request=request),
+            title="ElectroGPT Calc Action API",
+            description="Action specialisee pour le calcul scientifique.",
+            path_names=["/action-calc"],
+        )
+    )
+
+
+@app.get("/openapi.research.json", include_in_schema=False)
+def openapi_research(request: Request):
+    return JSONResponse(
+        _build_action_openapi(
+            _get_base_url(request=request),
+            title="ElectroGPT Research Action API",
+            description="Action specialisee pour la recherche d'articles techniques.",
+            path_names=["/action-research"],
+        )
+    )
+
+
+@app.get("/openapi.simulation.json", include_in_schema=False)
+def openapi_simulation(request: Request):
+    return JSONResponse(
+        _build_action_openapi(
+            _get_base_url(request=request),
+            title="ElectroGPT Simulation Action API",
+            description="Action specialisee pour la simulation electrotechnique compacte.",
+            path_names=["/action-simulation"],
+        )
+    )
+
+
+@app.get("/openapi.realtime.json", include_in_schema=False)
+def openapi_realtime(request: Request):
+    return JSONResponse(
+        _build_action_openapi(
+            _get_base_url(request=request),
+            title="ElectroGPT Realtime Action API",
+            description="Action specialisee pour le dashboard temps reel et le streaming SSE.",
+            path_names=["/action-realtime"],
+        )
+    )
+
+
+@app.get("/openapi.diagnosis.json", include_in_schema=False)
+def openapi_diagnosis(request: Request):
+    return JSONResponse(
+        _build_action_openapi(
+            _get_base_url(request=request),
+            title="ElectroGPT Diagnosis Action API",
+            description="Action specialisee pour le diagnostic d'ingenierie.",
+            path_names=["/action-diagnosis"],
+        )
+    )
+
+
+@app.get("/openapi.academic.json", include_in_schema=False)
+def openapi_academic(request: Request):
+    return JSONResponse(
+        _build_action_openapi(
+            _get_base_url(request=request),
+            title="ElectroGPT Academic Action API",
+            description="Action specialisee pour le cadrage academique.",
+            path_names=["/action-academic"],
+        )
+    )
+
+
+@app.get("/openapi.thesis.json", include_in_schema=False)
+def openapi_thesis(request: Request):
+    return JSONResponse(
+        _build_action_openapi(
+            _get_base_url(request=request),
+            title="ElectroGPT Thesis Action API",
+            description="Action specialisee pour les workflows de TFE, memoire et these.",
+            path_names=["/action-thesis"],
+        )
+    )
+
+
+@app.get("/openapi.live.json", include_in_schema=False)
+def openapi_live(request: Request):
+    return JSONResponse(
+        _build_action_openapi(
+            _get_base_url(request=request),
+            title="ElectroGPT Live Action API",
+            description="Action specialisee pour l'integration live MQTT, Modbus, WebSocket et HTTP.",
+            path_names=["/action-live"],
+        )
+    )
 
 
 @app.get("/.well-known/ai-plugin.json", include_in_schema=False)

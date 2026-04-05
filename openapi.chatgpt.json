@@ -106,6 +106,90 @@
   },
   "components": {
     "schemas": {
+      "AcademicActionResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "answer": {
+            "type": "string",
+            "title": "Answer"
+          },
+          "next_step": {
+            "type": "string",
+            "title": "Next Step",
+            "default": ""
+          },
+          "error": {
+            "type": "string",
+            "title": "Error",
+            "default": ""
+          },
+          "academic_level": {
+            "type": "string",
+            "title": "Academic Level",
+            "default": ""
+          },
+          "deliverable_type": {
+            "type": "string",
+            "title": "Deliverable Type",
+            "default": ""
+          },
+          "domain_focus": {
+            "type": "string",
+            "title": "Domain Focus",
+            "default": ""
+          },
+          "title_suggestions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Title Suggestions"
+          },
+          "problem_statement": {
+            "type": "string",
+            "title": "Problem Statement",
+            "default": ""
+          },
+          "objectives": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Objectives"
+          },
+          "research_questions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Research Questions"
+          },
+          "methodology_summary": {
+            "type": "string",
+            "title": "Methodology Summary",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "source",
+          "query",
+          "answer"
+        ],
+        "title": "AcademicActionResponse"
+      },
       "AcademicAssistantResponse": {
         "properties": {
           "status": {
@@ -302,6 +386,49 @@
         ],
         "title": "ArxivResponse"
       },
+      "CalcActionResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "answer": {
+            "type": "string",
+            "title": "Answer"
+          },
+          "next_step": {
+            "type": "string",
+            "title": "Next Step",
+            "default": ""
+          },
+          "error": {
+            "type": "string",
+            "title": "Error",
+            "default": ""
+          },
+          "result": {
+            "type": "string",
+            "title": "Result",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "source",
+          "query",
+          "answer"
+        ],
+        "title": "CalcActionResponse"
+      },
       "ConnectorStatusResponse": {
         "properties": {
           "status": {
@@ -336,6 +463,82 @@
           "total_points"
         ],
         "title": "ConnectorStatusResponse"
+      },
+      "DiagnosisActionResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "answer": {
+            "type": "string",
+            "title": "Answer"
+          },
+          "next_step": {
+            "type": "string",
+            "title": "Next Step",
+            "default": ""
+          },
+          "error": {
+            "type": "string",
+            "title": "Error",
+            "default": ""
+          },
+          "severity": {
+            "type": "string",
+            "title": "Severity",
+            "default": ""
+          },
+          "symptom_summary": {
+            "type": "string",
+            "title": "Symptom Summary",
+            "default": ""
+          },
+          "probable_causes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Probable Causes"
+          },
+          "measurements_to_take": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Measurements To Take"
+          },
+          "equations_to_check": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Equations To Check"
+          },
+          "action_plan": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Action Plan"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "source",
+          "query",
+          "answer"
+        ],
+        "title": "DiagnosisActionResponse"
       },
       "EngineeringDiagnosisResponse": {
         "properties": {
@@ -691,6 +894,86 @@
         ],
         "title": "LiteratureStrategy"
       },
+      "LiveActionResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "answer": {
+            "type": "string",
+            "title": "Answer"
+          },
+          "next_step": {
+            "type": "string",
+            "title": "Next Step",
+            "default": ""
+          },
+          "error": {
+            "type": "string",
+            "title": "Error",
+            "default": ""
+          },
+          "dashboard_url": {
+            "type": "string",
+            "title": "Dashboard Url",
+            "default": ""
+          },
+          "stream_url": {
+            "type": "string",
+            "title": "Stream Url",
+            "default": ""
+          },
+          "http_ingest_url": {
+            "type": "string",
+            "title": "Http Ingest Url",
+            "default": ""
+          },
+          "websocket_ingest_url_template": {
+            "type": "string",
+            "title": "Websocket Ingest Url Template",
+            "default": ""
+          },
+          "websocket_watch_url_template": {
+            "type": "string",
+            "title": "Websocket Watch Url Template",
+            "default": ""
+          },
+          "mqtt_status": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Mqtt Status"
+          },
+          "modbus_example_url": {
+            "type": "string",
+            "title": "Modbus Example Url",
+            "default": ""
+          },
+          "next_steps": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Next Steps"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "source",
+          "query",
+          "answer"
+        ],
+        "title": "LiveActionResponse"
+      },
       "LiveConnectorResponse": {
         "properties": {
           "status": {
@@ -942,6 +1225,81 @@
         ],
         "title": "PaperResult"
       },
+      "RealtimeActionResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "answer": {
+            "type": "string",
+            "title": "Answer"
+          },
+          "next_step": {
+            "type": "string",
+            "title": "Next Step",
+            "default": ""
+          },
+          "error": {
+            "type": "string",
+            "title": "Error",
+            "default": ""
+          },
+          "dashboard_url": {
+            "type": "string",
+            "title": "Dashboard Url",
+            "default": ""
+          },
+          "stream_url": {
+            "type": "string",
+            "title": "Stream Url",
+            "default": ""
+          },
+          "recommended_signals": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Recommended Signals"
+          },
+          "pace_ms": {
+            "type": "integer",
+            "title": "Pace Ms",
+            "default": 0
+          },
+          "simulation_summary": {
+            "type": "string",
+            "title": "Simulation Summary",
+            "default": ""
+          },
+          "simulation_parameters": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Simulation Parameters"
+          },
+          "simulation_metrics": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Simulation Metrics"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "source",
+          "query",
+          "answer"
+        ],
+        "title": "RealtimeActionResponse"
+      },
       "RealtimeSimulationResponse": {
         "properties": {
           "status": {
@@ -997,6 +1355,76 @@
         ],
         "title": "RealtimeSimulationResponse"
       },
+      "ResearchActionResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "answer": {
+            "type": "string",
+            "title": "Answer"
+          },
+          "next_step": {
+            "type": "string",
+            "title": "Next Step",
+            "default": ""
+          },
+          "error": {
+            "type": "string",
+            "title": "Error",
+            "default": ""
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider",
+            "default": ""
+          },
+          "effective_query": {
+            "type": "string",
+            "title": "Effective Query",
+            "default": ""
+          },
+          "domain_filter_applied": {
+            "type": "boolean",
+            "title": "Domain Filter Applied",
+            "default": false
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count",
+            "default": 0
+          },
+          "warning": {
+            "type": "string",
+            "title": "Warning",
+            "default": ""
+          },
+          "top_results": {
+            "items": {
+              "$ref": "#/components/schemas/GptToolResult"
+            },
+            "type": "array",
+            "title": "Top Results"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "source",
+          "query",
+          "answer"
+        ],
+        "title": "ResearchActionResponse"
+      },
       "ResearchResponse": {
         "properties": {
           "status": {
@@ -1026,6 +1454,100 @@
           "query"
         ],
         "title": "ResearchResponse"
+      },
+      "SimulationActionResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "answer": {
+            "type": "string",
+            "title": "Answer"
+          },
+          "next_step": {
+            "type": "string",
+            "title": "Next Step",
+            "default": ""
+          },
+          "error": {
+            "type": "string",
+            "title": "Error",
+            "default": ""
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "default": ""
+          },
+          "simulation_mode": {
+            "type": "string",
+            "title": "Simulation Mode",
+            "default": ""
+          },
+          "resource_url": {
+            "type": "string",
+            "title": "Resource Url",
+            "default": ""
+          },
+          "stream_url": {
+            "type": "string",
+            "title": "Stream Url",
+            "default": ""
+          },
+          "plot_url": {
+            "type": "string",
+            "title": "Plot Url",
+            "default": ""
+          },
+          "parameters": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Parameters"
+          },
+          "metrics": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metrics"
+          },
+          "interpretation_preview": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Interpretation Preview"
+          },
+          "recommended_signals": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Recommended Signals"
+          },
+          "minimum_inputs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Minimum Inputs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "source",
+          "query",
+          "answer"
+        ],
+        "title": "SimulationActionResponse"
       },
       "SimulationPoint": {
         "properties": {
@@ -1401,6 +1923,94 @@
           "retained_points"
         ],
         "title": "TelemetryIngestResponse"
+      },
+      "ThesisActionResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "answer": {
+            "type": "string",
+            "title": "Answer"
+          },
+          "next_step": {
+            "type": "string",
+            "title": "Next Step",
+            "default": ""
+          },
+          "error": {
+            "type": "string",
+            "title": "Error",
+            "default": ""
+          },
+          "academic_level": {
+            "type": "string",
+            "title": "Academic Level",
+            "default": ""
+          },
+          "deliverable_type": {
+            "type": "string",
+            "title": "Deliverable Type",
+            "default": ""
+          },
+          "domain_focus": {
+            "type": "string",
+            "title": "Domain Focus",
+            "default": ""
+          },
+          "proposed_topic": {
+            "type": "string",
+            "title": "Proposed Topic",
+            "default": ""
+          },
+          "novelty_angle": {
+            "type": "string",
+            "title": "Novelty Angle",
+            "default": ""
+          },
+          "chapter_plan_preview": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Chapter Plan Preview"
+          },
+          "literature_strategy": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Literature Strategy"
+          },
+          "methodology_blueprint": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Methodology Blueprint"
+          },
+          "next_actions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Next Actions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "source",
+          "query",
+          "answer"
+        ],
+        "title": "ThesisActionResponse"
       },
       "ThesisChapter": {
         "properties": {
