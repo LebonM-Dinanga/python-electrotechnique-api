@@ -722,7 +722,7 @@ class ModbusReadResponse(BaseModel):
 app = FastAPI(
     title="Python Electrotechnique API",
     description="API FastAPI pour enrichir un assistant GPT avec WolframAlpha, arXiv, des simulations electrotechniques avancees, de la visualisation, de l'ingestion live MQTT/Modbus/WebSocket, du diagnostic d'ingenierie, un assistant academique et un workflow de these/TFE.",
-    version="2.4.0",
+    version="2.4.1",
 )
 
 app.add_middleware(
@@ -756,6 +756,13 @@ def _normalize_text(value: str | None) -> str:
     if not value:
         return ""
     return " ".join(value.split())
+
+
+def _truncate_text(value: str | None, max_length: int = 240) -> str:
+    normalized = _normalize_text(value)
+    if len(normalized) <= max_length:
+        return normalized
+    return normalized[: max_length - 3].rstrip() + "..."
 
 
 def _strip_html_tags(value: str | None) -> str:
@@ -3638,25 +3645,44 @@ def _build_gpt_tool_results(mode: str, data: dict[str, Any], fallback_answer: st
     return []
 
 
-def _compact_simulation_details(data: dict[str, Any], preview_points: int = 8) -> dict[str, Any]:
-    series = data.get("series", []) or []
-    safe_preview = max(0, min(preview_points, len(series)))
-    return {
+def _compact_simulation_details(data: dict[str, Any]) -> dict[str, Any]:
+    parameters = data.get("parameters", {}) if isinstance(data.get("parameters"), dict) else {}
+    metrics = data.get("metrics", {}) if isinstance(data.get("metrics"), dict) else {}
+    streaming = data.get("streaming", {}) if isinstance(data.get("streaming"), dict) else {}
+    visualizations = data.get("visualizations", []) or []
+    dashboard_url = streaming.get("dashboard_url", "")
+    stream_url = streaming.get("stream_url", "")
+    plot_url = ""
+
+    for asset in visualizations:
+        if not isinstance(asset, dict):
+            continue
+        if not dashboard_url and asset.get("kind") == "dashboard":
+            dashboard_url = asset.get("url", "")
+        if not plot_url and asset.get("kind") == "svg-plot":
+            plot_url = asset.get("url", "")
+
+    compact = {
         "status": data.get("status", ""),
         "source": data.get("source", ""),
         "kind": data.get("kind", ""),
         "simulation_mode": data.get("simulation_mode", ""),
-        "query": data.get("query", ""),
-        "summary": data.get("summary", ""),
-        "parameters": data.get("parameters", {}),
-        "metrics": data.get("metrics", {}),
-        "interpretation": data.get("interpretation", []),
-        "visualizations": data.get("visualizations", []),
-        "streaming": data.get("streaming", {}),
-        "count": data.get("count", len(series)),
-        "series_preview": series[:safe_preview],
-        "series_truncated": len(series) > safe_preview,
+        "summary": _truncate_text(data.get("summary", ""), 220),
+        "parameters": parameters,
+        "metrics": metrics,
+        "interpretation_preview": [_truncate_text(item, 180) for item in (data.get("interpretation") or [])[:2]],
+        "dashboard_url": dashboard_url,
+        "stream_url": stream_url,
+        "plot_url": plot_url,
+        "recommended_signals": (streaming.get("recommended_signals") or [])[:4],
     }
+
+    if data.get("status") == "needs-input":
+        compact["minimum_inputs"] = (parameters.get("minimum_inputs") or [])[:6]
+        compact["example_query"] = parameters.get("example_query", "")
+        compact["next_step"] = metrics.get("next_step", "")
+
+    return compact
 
 
 def _compact_diagnosis_details(data: dict[str, Any]) -> dict[str, Any]:
@@ -3685,55 +3711,84 @@ def _compact_academic_details(data: dict[str, Any]) -> dict[str, Any]:
     return {
         "status": data.get("status", ""),
         "source": data.get("source", ""),
-        "query": data.get("query", ""),
-        "normalized_query": data.get("normalized_query", ""),
         "academic_level": data.get("academic_level", ""),
         "deliverable_type": data.get("deliverable_type", ""),
         "domain_focus": data.get("domain_focus", ""),
         "title_suggestions": (data.get("title_suggestions") or [])[:3],
-        "problem_statement": data.get("problem_statement", ""),
-        "objectives": (data.get("objectives") or [])[:4],
-        "research_questions": (data.get("research_questions") or [])[:4],
-        "keywords": (data.get("keywords") or [])[:6],
-        "search_queries": (data.get("search_queries") or [])[:4],
+        "problem_statement": _truncate_text(data.get("problem_statement", ""), 320),
+        "objectives": (data.get("objectives") or [])[:3],
+        "research_questions": (data.get("research_questions") or [])[:3],
+        "keywords": (data.get("keywords") or [])[:5],
         "recommended_sources": (data.get("recommended_sources") or [])[:4],
         "recommended_tools": (data.get("recommended_tools") or [])[:4],
-        "methodology": data.get("methodology", ""),
-        "outline": (data.get("outline") or [])[:5],
-        "writing_guidelines": (data.get("writing_guidelines") or [])[:4],
-        "milestones": (data.get("milestones") or [])[:4],
-        "originality_note": data.get("originality_note", ""),
-        "next_steps": (data.get("next_steps") or [])[:4],
+        "methodology_summary": _truncate_text(data.get("methodology", ""), 280),
+        "outline_preview": (data.get("outline") or [])[:4],
+        "milestones": (data.get("milestones") or [])[:3],
+        "originality_note": _truncate_text(data.get("originality_note", ""), 220),
+        "next_steps": (data.get("next_steps") or [])[:3],
     }
 
 
 def _compact_thesis_details(data: dict[str, Any]) -> dict[str, Any]:
     chapter_plan = data.get("chapter_plan") or []
     writing_calendar = data.get("writing_calendar") or []
+    literature_strategy = data.get("literature_strategy", {}) if isinstance(data.get("literature_strategy"), dict) else {}
+    methodology_blueprint = data.get("methodology_blueprint", {}) if isinstance(data.get("methodology_blueprint"), dict) else {}
+    compact_chapters = []
+    for chapter in chapter_plan[:2]:
+        if not isinstance(chapter, dict):
+            continue
+        compact_chapters.append(
+            {
+                "chapter_number": chapter.get("chapter_number"),
+                "title": chapter.get("title", ""),
+                "objective": _truncate_text(chapter.get("objective", ""), 180),
+            }
+        )
+    compact_calendar = []
+    for milestone in writing_calendar[:2]:
+        if not isinstance(milestone, dict):
+            continue
+        compact_calendar.append(
+            {
+                "phase": milestone.get("phase", ""),
+                "week_range": milestone.get("week_range", ""),
+                "focus": _truncate_text(milestone.get("focus", ""), 140),
+                "deliverables": (milestone.get("deliverables") or [])[:2],
+            }
+        )
     return {
         "status": data.get("status", ""),
         "source": data.get("source", ""),
-        "query": data.get("query", ""),
-        "normalized_query": data.get("normalized_query", ""),
         "academic_level": data.get("academic_level", ""),
         "deliverable_type": data.get("deliverable_type", ""),
         "domain_focus": data.get("domain_focus", ""),
-        "proposed_topic": data.get("proposed_topic", ""),
-        "title_options": (data.get("title_options") or [])[:3],
-        "problem_statement": data.get("problem_statement", ""),
-        "novelty_angle": data.get("novelty_angle", ""),
-        "hypotheses": (data.get("hypotheses") or [])[:3],
-        "objectives": (data.get("objectives") or [])[:4],
-        "research_questions": (data.get("research_questions") or [])[:4],
-        "chapter_plan_preview": chapter_plan[:3],
+        "proposed_topic": _truncate_text(data.get("proposed_topic", ""), 220),
+        "title_options": (data.get("title_options") or [])[:2],
+        "problem_statement": _truncate_text(data.get("problem_statement", ""), 320),
+        "novelty_angle": _truncate_text(data.get("novelty_angle", ""), 220),
+        "hypotheses": (data.get("hypotheses") or [])[:2],
+        "objectives": (data.get("objectives") or [])[:2],
+        "research_questions": (data.get("research_questions") or [])[:2],
+        "chapter_plan_preview": compact_chapters,
         "chapter_plan_count": len(chapter_plan),
-        "literature_strategy": data.get("literature_strategy", {}),
-        "methodology_blueprint": data.get("methodology_blueprint", {}),
-        "writing_calendar_preview": writing_calendar[:3],
+        "literature_strategy": {
+            "objective": _truncate_text(literature_strategy.get("objective", ""), 220),
+            "databases": (literature_strategy.get("databases") or [])[:3],
+            "search_queries": (literature_strategy.get("search_queries") or [])[:2],
+            "screening_criteria": (literature_strategy.get("screening_criteria") or [])[:2],
+        },
+        "methodology_blueprint": {
+            "approach": _truncate_text(methodology_blueprint.get("approach", ""), 220),
+            "work_packages": (methodology_blueprint.get("work_packages") or [])[:3],
+            "tools": (methodology_blueprint.get("tools") or [])[:3],
+            "validation_metrics": (methodology_blueprint.get("validation_metrics") or [])[:2],
+        },
+        "writing_calendar_preview": compact_calendar,
         "writing_calendar_count": len(writing_calendar),
-        "quality_checklist": (data.get("quality_checklist") or [])[:5],
-        "originality_note": data.get("originality_note", ""),
-        "next_actions": (data.get("next_actions") or [])[:4],
+        "quality_checklist": (data.get("quality_checklist") or [])[:2],
+        "originality_note": _truncate_text(data.get("originality_note", ""), 220),
+        "next_actions": (data.get("next_actions") or [])[:2],
     }
 
 
