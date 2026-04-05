@@ -3458,6 +3458,18 @@ def _build_thesis_workflow_brief(payload: dict[str, Any]) -> str:
 
 
 def _build_realtime_brief(payload: dict[str, Any]) -> str:
+    dashboard_url = payload.get("dashboard_url", "")
+    stream_url = payload.get("stream_url", "")
+    if dashboard_url:
+        if stream_url:
+            return (
+                f"Dashboard temps reel externe pret. Ouvre directement cette URL: {dashboard_url} . "
+                f"Flux SSE associe: {stream_url} . N'essaie pas de generer un dashboard local de remplacement."
+            )
+        return (
+            f"Dashboard temps reel externe pret. Ouvre directement cette URL: {dashboard_url} . "
+            "N'essaie pas de generer un dashboard local de remplacement."
+        )
     return (
         "Dashboard temps reel externe pret. Donne a l'utilisateur l'URL `details.dashboard_url` et le flux "
         "`details.stream_url`. N'essaie pas de generer un dashboard local de remplacement si ces URLs sont presentes."
@@ -3465,6 +3477,12 @@ def _build_realtime_brief(payload: dict[str, Any]) -> str:
 
 
 def _build_live_brief(payload: dict[str, Any]) -> str:
+    dashboard_url = payload.get("dashboard_url", "")
+    if dashboard_url:
+        return (
+            f"Connecteurs live externes prets. Dashboard disponible ici: {dashboard_url} . "
+            "Donne cette URL et les endpoints fournis. Ne genere pas d'interface locale de remplacement."
+        )
     return (
         "Connecteurs live externes prets. Donne les URLs et endpoints du detail sans generer une interface locale de "
         "remplacement tant que `details.dashboard_url` ou les endpoints live sont presents."
@@ -3727,6 +3745,7 @@ def _compact_gpt_tool_details(mode: str, data: dict[str, Any]) -> dict[str, Any]
         return _compact_simulation_details(data)
 
     if mode == "realtime":
+        simulation = data.get("simulation")
         compact = {
             "status": data.get("status", ""),
             "source": data.get("source", ""),
@@ -3736,18 +3755,10 @@ def _compact_gpt_tool_details(mode: str, data: dict[str, Any]) -> dict[str, Any]
             "stream_url": data.get("stream_url", ""),
             "recommended_signals": data.get("recommended_signals", []),
             "pace_ms": data.get("pace_ms", 0),
+            "simulation_summary": simulation.get("summary", "") if isinstance(simulation, dict) else "",
+            "simulation_parameters": simulation.get("parameters", {}) if isinstance(simulation, dict) else {},
+            "simulation_metrics": simulation.get("metrics", {}) if isinstance(simulation, dict) else {},
         }
-        simulation = data.get("simulation")
-        if isinstance(simulation, dict):
-            compact["simulation"] = {
-                "status": simulation.get("status", ""),
-                "kind": simulation.get("kind", ""),
-                "simulation_mode": simulation.get("simulation_mode", ""),
-                "summary": simulation.get("summary", ""),
-                "parameters": simulation.get("parameters", {}),
-                "metrics": simulation.get("metrics", {}),
-                "interpretation": simulation.get("interpretation", []),
-            }
         return compact
 
     if mode == "live":
