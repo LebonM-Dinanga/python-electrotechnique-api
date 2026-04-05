@@ -6024,6 +6024,30 @@ def chatgpt_action_openapi(request: Request):
     return JSONResponse(_build_chatgpt_action_openapi(_get_base_url(request=request)))
 
 
+@app.get("/openapi.specialized.json", include_in_schema=False)
+def openapi_specialized(request: Request):
+    return JSONResponse(
+        _build_action_openapi(
+            _get_base_url(request=request),
+            title="ElectroGPT Specialized Actions API",
+            description=(
+                "Pack unique d'actions specialisees pour ChatGPT sur un seul domaine : "
+                "wolfram, research, simulation, realtime, diagnosis, academic, thesis et live."
+            ),
+            path_names=[
+                "/action-wolfram",
+                "/action-research",
+                "/action-simulation",
+                "/action-realtime",
+                "/action-diagnosis",
+                "/action-academic",
+                "/action-thesis",
+                "/action-live",
+            ],
+        )
+    )
+
+
 @app.get("/openapi.calc.json", include_in_schema=False)
 def openapi_calc(request: Request):
     return JSONResponse(

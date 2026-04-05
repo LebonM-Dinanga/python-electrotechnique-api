@@ -1,0 +1,1329 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "ElectroGPT Specialized Actions API",
+    "description": "Pack unique d'actions specialisees pour ChatGPT sur un seul domaine : wolfram, research, simulation, realtime, diagnosis, academic, thesis et live.",
+    "version": "2.4.2"
+  },
+  "servers": [
+    {
+      "url": "https://electrotechnique-gpt-tool.onrender.com",
+      "description": "Public HTTPS endpoint for ChatGPT Actions"
+    }
+  ],
+  "paths": {
+    "/action-wolfram": {
+      "get": {
+        "summary": "Action Wolfram",
+        "description": "Alias explicite de l'action de calcul pour un usage WolframAlpha dedie dans le builder GPT.",
+        "operationId": "action_wolfram_action_wolfram_get",
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 300
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Question ou expression mathematique",
+              "title": "Query"
+            },
+            "description": "Question ou expression mathematique"
+          },
+          {
+            "name": "input",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 300
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Alias principal",
+              "title": "Input"
+            },
+            "description": "Alias principal"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalcActionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/action-research": {
+      "get": {
+        "summary": "Action Recherche",
+        "description": "Action ChatGPT specialisee pour la recherche d'articles techniques via arXiv/Crossref.",
+        "operationId": "action_research_action_research_get",
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 300
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Sujet de recherche technique",
+              "title": "Query"
+            },
+            "description": "Sujet de recherche technique"
+          },
+          {
+            "name": "input",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 300
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Alias principal",
+              "title": "Input"
+            },
+            "description": "Alias principal"
+          },
+          {
+            "name": "max_results",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 10,
+              "minimum": 1,
+              "description": "Nombre maximum de resultats",
+              "default": 3,
+              "title": "Max Results"
+            },
+            "description": "Nombre maximum de resultats"
+          },
+          {
+            "name": "auto_filter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Active le filtre electrotechnique automatique",
+              "default": true,
+              "title": "Auto Filter"
+            },
+            "description": "Active le filtre electrotechnique automatique"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResearchActionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/action-simulation": {
+      "get": {
+        "summary": "Action Simulation",
+        "description": "Action ChatGPT specialisee pour les simulations electrotechniques compactes avec liens de visualisation.",
+        "operationId": "action_simulation_action_simulation_get",
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 500
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Requete de simulation",
+              "title": "Query"
+            },
+            "description": "Requete de simulation"
+          },
+          {
+            "name": "input",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 500
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Alias principal",
+              "title": "Input"
+            },
+            "description": "Alias principal"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimulationActionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/action-realtime": {
+      "get": {
+        "summary": "Action Dashboard Temps Reel",
+        "description": "Action ChatGPT specialisee pour obtenir un dashboard temps reel et un flux SSE externes.",
+        "operationId": "action_realtime_action_realtime_get",
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 500
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Demande de dashboard ou de streaming",
+              "title": "Query"
+            },
+            "description": "Demande de dashboard ou de streaming"
+          },
+          {
+            "name": "input",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 500
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Alias principal",
+              "title": "Input"
+            },
+            "description": "Alias principal"
+          },
+          {
+            "name": "pace_ms",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 2000,
+              "minimum": 20,
+              "description": "Cadence du flux SSE",
+              "default": 120,
+              "title": "Pace Ms"
+            },
+            "description": "Cadence du flux SSE"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RealtimeActionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/action-diagnosis": {
+      "get": {
+        "summary": "Action Diagnostic",
+        "description": "Action ChatGPT specialisee pour l'analyse de panne, diagnostic et troubleshooting d'ingenierie.",
+        "operationId": "action_diagnosis_action_diagnosis_get",
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 500
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Description du probleme technique",
+              "title": "Query"
+            },
+            "description": "Description du probleme technique"
+          },
+          {
+            "name": "input",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 500
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Alias principal",
+              "title": "Input"
+            },
+            "description": "Alias principal"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiagnosisActionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/action-academic": {
+      "get": {
+        "summary": "Action Academique",
+        "description": "Action ChatGPT specialisee pour cadrer un TFE, memoire ou besoin academique.",
+        "operationId": "action_academic_action_academic_get",
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 400
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Sujet ou besoin academique",
+              "title": "Query"
+            },
+            "description": "Sujet ou besoin academique"
+          },
+          {
+            "name": "input",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 400
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Alias principal",
+              "title": "Input"
+            },
+            "description": "Alias principal"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcademicActionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/action-thesis": {
+      "get": {
+        "summary": "Action Workflow These",
+        "description": "Action ChatGPT specialisee pour le workflow complet de TFE, memoire ou these.",
+        "operationId": "action_thesis_action_thesis_get",
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 500
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Sujet ou besoin de workflow academique",
+              "title": "Query"
+            },
+            "description": "Sujet ou besoin de workflow academique"
+          },
+          {
+            "name": "input",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 500
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Alias principal",
+              "title": "Input"
+            },
+            "description": "Alias principal"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ThesisActionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/action-live": {
+      "get": {
+        "summary": "Action Connecteurs Live",
+        "description": "Action ChatGPT specialisee pour MQTT, Modbus, WebSocket, HTTP ingest et dashboards live.",
+        "operationId": "action_live_action_live_get",
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 400
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Besoin d'integration live",
+              "title": "Query"
+            },
+            "description": "Besoin d'integration live"
+          },
+          {
+            "name": "input",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 400
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Alias principal",
+              "title": "Input"
+            },
+            "description": "Alias principal"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveActionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "DiagnosisActionResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "answer": {
+            "type": "string",
+            "title": "Answer"
+          },
+          "next_step": {
+            "type": "string",
+            "title": "Next Step",
+            "default": ""
+          },
+          "error": {
+            "type": "string",
+            "title": "Error",
+            "default": ""
+          },
+          "severity": {
+            "type": "string",
+            "title": "Severity",
+            "default": ""
+          },
+          "symptom_summary": {
+            "type": "string",
+            "title": "Symptom Summary",
+            "default": ""
+          },
+          "probable_causes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Probable Causes"
+          },
+          "measurements_to_take": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Measurements To Take"
+          },
+          "equations_to_check": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Equations To Check"
+          },
+          "action_plan": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Action Plan"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "source",
+          "query",
+          "answer"
+        ],
+        "title": "DiagnosisActionResponse"
+      },
+      "SimulationActionResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "answer": {
+            "type": "string",
+            "title": "Answer"
+          },
+          "next_step": {
+            "type": "string",
+            "title": "Next Step",
+            "default": ""
+          },
+          "error": {
+            "type": "string",
+            "title": "Error",
+            "default": ""
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "default": ""
+          },
+          "simulation_mode": {
+            "type": "string",
+            "title": "Simulation Mode",
+            "default": ""
+          },
+          "resource_url": {
+            "type": "string",
+            "title": "Resource Url",
+            "default": ""
+          },
+          "stream_url": {
+            "type": "string",
+            "title": "Stream Url",
+            "default": ""
+          },
+          "plot_url": {
+            "type": "string",
+            "title": "Plot Url",
+            "default": ""
+          },
+          "parameters": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Parameters"
+          },
+          "metrics": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metrics"
+          },
+          "interpretation_preview": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Interpretation Preview"
+          },
+          "recommended_signals": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Recommended Signals"
+          },
+          "minimum_inputs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Minimum Inputs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "source",
+          "query",
+          "answer"
+        ],
+        "title": "SimulationActionResponse"
+      },
+      "RealtimeActionResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "answer": {
+            "type": "string",
+            "title": "Answer"
+          },
+          "next_step": {
+            "type": "string",
+            "title": "Next Step",
+            "default": ""
+          },
+          "error": {
+            "type": "string",
+            "title": "Error",
+            "default": ""
+          },
+          "dashboard_url": {
+            "type": "string",
+            "title": "Dashboard Url",
+            "default": ""
+          },
+          "stream_url": {
+            "type": "string",
+            "title": "Stream Url",
+            "default": ""
+          },
+          "recommended_signals": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Recommended Signals"
+          },
+          "pace_ms": {
+            "type": "integer",
+            "title": "Pace Ms",
+            "default": 0
+          },
+          "simulation_summary": {
+            "type": "string",
+            "title": "Simulation Summary",
+            "default": ""
+          },
+          "simulation_parameters": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Simulation Parameters"
+          },
+          "simulation_metrics": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Simulation Metrics"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "source",
+          "query",
+          "answer"
+        ],
+        "title": "RealtimeActionResponse"
+      },
+      "CalcActionResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "answer": {
+            "type": "string",
+            "title": "Answer"
+          },
+          "next_step": {
+            "type": "string",
+            "title": "Next Step",
+            "default": ""
+          },
+          "error": {
+            "type": "string",
+            "title": "Error",
+            "default": ""
+          },
+          "result": {
+            "type": "string",
+            "title": "Result",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "source",
+          "query",
+          "answer"
+        ],
+        "title": "CalcActionResponse"
+      },
+      "AcademicActionResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "answer": {
+            "type": "string",
+            "title": "Answer"
+          },
+          "next_step": {
+            "type": "string",
+            "title": "Next Step",
+            "default": ""
+          },
+          "error": {
+            "type": "string",
+            "title": "Error",
+            "default": ""
+          },
+          "academic_level": {
+            "type": "string",
+            "title": "Academic Level",
+            "default": ""
+          },
+          "deliverable_type": {
+            "type": "string",
+            "title": "Deliverable Type",
+            "default": ""
+          },
+          "domain_focus": {
+            "type": "string",
+            "title": "Domain Focus",
+            "default": ""
+          },
+          "title_suggestions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Title Suggestions"
+          },
+          "problem_statement": {
+            "type": "string",
+            "title": "Problem Statement",
+            "default": ""
+          },
+          "objectives": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Objectives"
+          },
+          "research_questions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Research Questions"
+          },
+          "methodology_summary": {
+            "type": "string",
+            "title": "Methodology Summary",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "source",
+          "query",
+          "answer"
+        ],
+        "title": "AcademicActionResponse"
+      },
+      "ThesisActionResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "answer": {
+            "type": "string",
+            "title": "Answer"
+          },
+          "next_step": {
+            "type": "string",
+            "title": "Next Step",
+            "default": ""
+          },
+          "error": {
+            "type": "string",
+            "title": "Error",
+            "default": ""
+          },
+          "academic_level": {
+            "type": "string",
+            "title": "Academic Level",
+            "default": ""
+          },
+          "deliverable_type": {
+            "type": "string",
+            "title": "Deliverable Type",
+            "default": ""
+          },
+          "domain_focus": {
+            "type": "string",
+            "title": "Domain Focus",
+            "default": ""
+          },
+          "proposed_topic": {
+            "type": "string",
+            "title": "Proposed Topic",
+            "default": ""
+          },
+          "novelty_angle": {
+            "type": "string",
+            "title": "Novelty Angle",
+            "default": ""
+          },
+          "chapter_plan_preview": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Chapter Plan Preview"
+          },
+          "literature_strategy": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Literature Strategy"
+          },
+          "methodology_blueprint": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Methodology Blueprint"
+          },
+          "next_actions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Next Actions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "source",
+          "query",
+          "answer"
+        ],
+        "title": "ThesisActionResponse"
+      },
+      "LiveActionResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "answer": {
+            "type": "string",
+            "title": "Answer"
+          },
+          "next_step": {
+            "type": "string",
+            "title": "Next Step",
+            "default": ""
+          },
+          "error": {
+            "type": "string",
+            "title": "Error",
+            "default": ""
+          },
+          "dashboard_url": {
+            "type": "string",
+            "title": "Dashboard Url",
+            "default": ""
+          },
+          "stream_url": {
+            "type": "string",
+            "title": "Stream Url",
+            "default": ""
+          },
+          "http_ingest_url": {
+            "type": "string",
+            "title": "Http Ingest Url",
+            "default": ""
+          },
+          "websocket_ingest_url_template": {
+            "type": "string",
+            "title": "Websocket Ingest Url Template",
+            "default": ""
+          },
+          "websocket_watch_url_template": {
+            "type": "string",
+            "title": "Websocket Watch Url Template",
+            "default": ""
+          },
+          "mqtt_status": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Mqtt Status"
+          },
+          "modbus_example_url": {
+            "type": "string",
+            "title": "Modbus Example Url",
+            "default": ""
+          },
+          "next_steps": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Next Steps"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "source",
+          "query",
+          "answer"
+        ],
+        "title": "LiveActionResponse"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "ResearchActionResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "answer": {
+            "type": "string",
+            "title": "Answer"
+          },
+          "next_step": {
+            "type": "string",
+            "title": "Next Step",
+            "default": ""
+          },
+          "error": {
+            "type": "string",
+            "title": "Error",
+            "default": ""
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider",
+            "default": ""
+          },
+          "effective_query": {
+            "type": "string",
+            "title": "Effective Query",
+            "default": ""
+          },
+          "domain_filter_applied": {
+            "type": "boolean",
+            "title": "Domain Filter Applied",
+            "default": false
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count",
+            "default": 0
+          },
+          "warning": {
+            "type": "string",
+            "title": "Warning",
+            "default": ""
+          },
+          "top_results": {
+            "items": {
+              "$ref": "#/components/schemas/GptToolResult"
+            },
+            "type": "array",
+            "title": "Top Results"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "source",
+          "query",
+          "answer"
+        ],
+        "title": "ResearchActionResponse"
+      },
+      "GptToolResult": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "default": ""
+          },
+          "snippet": {
+            "type": "string",
+            "title": "Snippet",
+            "default": ""
+          },
+          "link": {
+            "type": "string",
+            "title": "Link",
+            "default": ""
+          },
+          "published": {
+            "type": "string",
+            "title": "Published",
+            "default": ""
+          },
+          "authors": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Authors"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "title": "GptToolResult"
+      }
+    }
+  }
+}

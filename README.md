@@ -47,6 +47,7 @@ Le projet combine :
 - `GET /action-thesis` : action specialisee workflow TFE / these
 - `GET /action-live` : action specialisee connecteurs live
 - `GET /openapi.chatgpt.json` : schema OpenAPI dedie a l'action
+- `GET /openapi.specialized.json` : pack unique d'actions specialisees pour le builder GPT
 - `GET /openapi.calc.json` : schema OpenAPI dedie au calcul
 - `GET /openapi.wolfram.json` : schema OpenAPI dedie a Wolfram / calcul
 - `GET /openapi.research.json` : schema OpenAPI dedie a la recherche
@@ -65,6 +66,7 @@ Le projet combine :
 - `requirements.txt` : dependances Python
 - `render.yaml` : configuration Render
 - `openapi.chatgpt.json` : schema OpenAPI genere pour ChatGPT Actions
+- `openapi.specialized.json` : schema OpenAPI pack specialise pour ChatGPT
 - `openapi.calc.json` : schema OpenAPI specialise calcul
 - `openapi.wolfram.json` : schema OpenAPI specialise Wolfram / calcul
 - `openapi.research.json` : schema OpenAPI specialise recherche
@@ -146,6 +148,17 @@ http://127.0.0.1:8000/docs
 
 Le mode monolithique `/gpt-tool` reste disponible, mais le mode recommande pour le builder GPT est maintenant le mode multi-actions.
 
+Contrainte Builder GPT :
+
+- un meme domaine ne peut pas etre importe plusieurs fois comme ensembles d'actions distincts
+- sur `electrotechnique-gpt-tool.onrender.com`, il faut donc utiliser un seul pack d'actions si tu restes sur ce domaine
+
+Mode recommande :
+
+- `openapi.specialized.json` pour tout le pack ElectroGPT sur ton domaine Render
+- Zapier comme action separee sur son propre domaine
+- eventuellement un ancien proxy Wolfram, seulement s'il est sur un autre domaine
+
 URLs d'import conseillees :
 
 ```text
@@ -158,6 +171,7 @@ https://electrotechnique-gpt-tool.onrender.com/openapi.diagnosis.json
 https://electrotechnique-gpt-tool.onrender.com/openapi.academic.json
 https://electrotechnique-gpt-tool.onrender.com/openapi.thesis.json
 https://electrotechnique-gpt-tool.onrender.com/openapi.live.json
+https://electrotechnique-gpt-tool.onrender.com/openapi.specialized.json
 ```
 
 La procedure complete a coller dans le builder GPT est documentee dans [CHATGPT_ACTION_SETUP.md](D:/electrotechnique/python-electrotechnique-api/CHATGPT_ACTION_SETUP.md).
