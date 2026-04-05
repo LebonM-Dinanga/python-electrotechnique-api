@@ -3459,15 +3459,15 @@ def _build_thesis_workflow_brief(payload: dict[str, Any]) -> str:
 
 def _build_realtime_brief(payload: dict[str, Any]) -> str:
     return (
-        "Mode temps reel pret. Le detail contient un dashboard web, un flux de streaming SSE et la simulation de base "
-        "pour visualiser l'evolution du systeme directement dans un navigateur."
+        "Dashboard temps reel externe pret. Donne a l'utilisateur l'URL `details.dashboard_url` et le flux "
+        "`details.stream_url`. N'essaie pas de generer un dashboard local de remplacement si ces URLs sont presentes."
     )
 
 
 def _build_live_brief(payload: dict[str, Any]) -> str:
     return (
-        "Connecteurs live prets. Le detail contient les endpoints HTTP, WebSocket, telemetry stream, dashboard live, "
-        "etat MQTT et un exemple de lecture Modbus TCP."
+        "Connecteurs live externes prets. Donne les URLs et endpoints du detail sans generer une interface locale de "
+        "remplacement tant que `details.dashboard_url` ou les endpoints live sont presents."
     )
 
 
@@ -3739,7 +3739,15 @@ def _compact_gpt_tool_details(mode: str, data: dict[str, Any]) -> dict[str, Any]
         }
         simulation = data.get("simulation")
         if isinstance(simulation, dict):
-            compact["simulation"] = _compact_simulation_details(simulation, preview_points=8)
+            compact["simulation"] = {
+                "status": simulation.get("status", ""),
+                "kind": simulation.get("kind", ""),
+                "simulation_mode": simulation.get("simulation_mode", ""),
+                "summary": simulation.get("summary", ""),
+                "parameters": simulation.get("parameters", {}),
+                "metrics": simulation.get("metrics", {}),
+                "interpretation": simulation.get("interpretation", []),
+            }
         return compact
 
     if mode == "live":
