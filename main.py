@@ -586,6 +586,13 @@ class GptToolResponse(BaseModel):
     source: str
     redirect: str
     answer: str
+    resource_url: str = ""
+    stream_url: str = ""
+    plot_url: str = ""
+    canonical_query: str = ""
+    minimum_inputs: list[str] = Field(default_factory=list)
+    next_step: str = ""
+    action_hint: str = ""
     results: list[GptToolResult] = Field(default_factory=list)
     details: dict[str, Any] = Field(default_factory=dict)
     error: str = ""
@@ -722,7 +729,7 @@ class ModbusReadResponse(BaseModel):
 app = FastAPI(
     title="Python Electrotechnique API",
     description="API FastAPI pour enrichir un assistant GPT avec WolframAlpha, arXiv, des simulations electrotechniques avancees, de la visualisation, de l'ingestion live MQTT/Modbus/WebSocket, du diagnostic d'ingenierie, un assistant academique et un workflow de these/TFE.",
-    version="2.4.1",
+    version="2.4.2",
 )
 
 app.add_middleware(
@@ -3571,7 +3578,7 @@ def _build_gpt_tool_results(mode: str, data: dict[str, Any], fallback_answer: st
         return [
             GptToolResult(
                 title=f"Simulation {simulation_label}",
-                snippet=data.get("summary", fallback_answer),
+                snippet=_truncate_text(data.get("summary", fallback_answer), 180),
                 link="",
                 published="",
                 authors=[],
@@ -3583,7 +3590,7 @@ def _build_gpt_tool_results(mode: str, data: dict[str, Any], fallback_answer: st
         return [
             GptToolResult(
                 title="Dashboard Temps Reel",
-                snippet=data.get("summary", fallback_answer),
+                snippet=_truncate_text(data.get("summary", fallback_answer), 180),
                 link=data.get("dashboard_url", ""),
                 published="",
                 authors=[],
@@ -3595,7 +3602,7 @@ def _build_gpt_tool_results(mode: str, data: dict[str, Any], fallback_answer: st
         return [
             GptToolResult(
                 title="Dashboard Live",
-                snippet=data.get("summary", fallback_answer),
+                snippet=_truncate_text(data.get("summary", fallback_answer), 180),
                 link=data.get("dashboard_url", ""),
                 published="",
                 authors=[],
@@ -3607,39 +3614,39 @@ def _build_gpt_tool_results(mode: str, data: dict[str, Any], fallback_answer: st
         return [
             GptToolResult(
                 title=cause,
-                snippet=data.get("symptom_summary", fallback_answer),
+                snippet=_truncate_text(data.get("symptom_summary", fallback_answer), 180),
                 link="",
                 published="",
                 authors=[],
                 provider=data.get("source", "engineering-diagnosis"),
             ).model_dump()
-            for cause in data.get("probable_causes", [])[:3]
+            for cause in data.get("probable_causes", [])[:2]
         ]
 
     if mode == "thesis":
         return [
             GptToolResult(
                 title=title,
-                snippet=data.get("novelty_angle", fallback_answer),
+                snippet=_truncate_text(data.get("novelty_angle", fallback_answer), 180),
                 link="",
                 published="",
                 authors=[],
                 provider=data.get("source", "thesis-workflow"),
             ).model_dump()
-            for title in data.get("title_options", [])[:3]
+            for title in data.get("title_options", [])[:2]
         ]
 
     if mode == "academic":
         return [
             GptToolResult(
                 title=title,
-                snippet=data.get("problem_statement", fallback_answer),
+                snippet=_truncate_text(data.get("problem_statement", fallback_answer), 180),
                 link="",
                 published="",
                 authors=[],
                 provider=data.get("source", "academic-assistant"),
             ).model_dump()
-            for title in data.get("title_suggestions", [])[:3]
+            for title in data.get("title_suggestions", [])[:2]
         ]
 
     return []
@@ -3857,6 +3864,80 @@ def _compact_gpt_tool_details(mode: str, data: dict[str, Any]) -> dict[str, Any]
     return data
 
 
+def _extract_gpt_tool_surface(
+    mode: str,
+    status: str,
+    query_used: str,
+    data: dict[str, Any],
+    compact_details: dict[str, Any],
+) -> dict[str, Any]:
+    resource_url = ""
+    stream_url = ""
+    plot_url = ""
+    minimum_inputs: list[str] = []
+    next_step = ""
+    action_hint = ""
+
+    if mode in {"simulation", "realtime", "live"}:
+        resource_url = compact_details.get("dashboard_url", "") or data.get("dashboard_url", "")
+        stream_url = compact_details.get("stream_url", "") or data.get("stream_url", "")
+        plot_url = compact_details.get("plot_url", "")
+
+    if mode == "simulation":
+        streaming = data.get("streaming", {}) if isinstance(data.get("streaming"), dict) else {}
+        resource_url = resource_url or streaming.get("dashboard_url", "")
+        stream_url = stream_url or streaming.get("stream_url", "")
+        if not plot_url:
+            for asset in data.get("visualizations", []) or []:
+                if isinstance(asset, dict) and asset.get("kind") == "svg-plot":
+                    plot_url = asset.get("url", "")
+                    break
+        minimum_inputs = compact_details.get("minimum_inputs") or []
+        next_step = compact_details.get("next_step") or ""
+        if minimum_inputs:
+            action_hint = "provide_missing_parameters"
+        elif resource_url:
+            action_hint = "open_external_dashboard"
+        elif plot_url:
+            action_hint = "open_external_plot"
+        else:
+            action_hint = "explain_simulation"
+    elif mode == "realtime":
+        next_step = "Ouvrir resource_url dans le navigateur. Utiliser stream_url pour le flux SSE."
+        action_hint = "open_external_dashboard"
+    elif mode == "live":
+        next_step = "Ouvrir resource_url puis configurer les endpoints live fournis."
+        action_hint = "open_live_dashboard"
+    elif mode == "academic":
+        next_steps = compact_details.get("next_steps") or []
+        next_step = next_steps[0] if next_steps else ""
+        action_hint = "ask_subject_clarification" if status == "needs-input" else "follow_academic_plan"
+    elif mode == "thesis":
+        next_actions = compact_details.get("next_actions") or []
+        next_step = next_actions[0] if next_actions else ""
+        action_hint = "ask_subject_clarification" if status == "needs-input" else "follow_thesis_workflow"
+    elif mode == "diagnosis":
+        action_plan = compact_details.get("action_plan") or []
+        next_step = action_plan[0] if action_plan else ""
+        action_hint = "run_engineering_checks"
+    elif mode == "arxiv":
+        action_hint = "review_external_sources"
+    elif mode == "wolfram":
+        action_hint = "use_computed_result"
+    else:
+        action_hint = "answer_directly"
+
+    return {
+        "resource_url": resource_url,
+        "stream_url": stream_url,
+        "plot_url": plot_url,
+        "canonical_query": query_used,
+        "minimum_inputs": minimum_inputs,
+        "next_step": next_step,
+        "action_hint": action_hint,
+    }
+
+
 def _to_gpt_tool_response(smart_payload: dict[str, Any]) -> dict[str, Any]:
     mode = smart_payload.get("mode", "basic")
     data = smart_payload.get("data") or smart_payload.get("external_result") or {}
@@ -3892,6 +3973,15 @@ def _to_gpt_tool_response(smart_payload: dict[str, Any]) -> dict[str, Any]:
         source = "direct"
         query_used = smart_payload.get("normalized_input") or smart_payload.get("input", "")
 
+    surface = _extract_gpt_tool_surface(
+        mode=mode,
+        status=smart_payload.get("status", "ok"),
+        query_used=query_used,
+        data=data,
+        compact_details=compact_details,
+    )
+    redirect = surface["resource_url"] or surface["plot_url"] or smart_payload.get("redirect") or ""
+
     return GptToolResponse(
         status=smart_payload.get("status", "ok"),
         tool="gpt-tool",
@@ -3900,8 +3990,15 @@ def _to_gpt_tool_response(smart_payload: dict[str, Any]) -> dict[str, Any]:
         query_used=query_used,
         executed=bool(smart_payload.get("executed", False)),
         source=source,
-        redirect=smart_payload.get("redirect") or "",
+        redirect=redirect,
         answer=answer,
+        resource_url=surface["resource_url"],
+        stream_url=surface["stream_url"],
+        plot_url=surface["plot_url"],
+        canonical_query=surface["canonical_query"],
+        minimum_inputs=surface["minimum_inputs"],
+        next_step=surface["next_step"],
+        action_hint=surface["action_hint"],
         results=[GptToolResult(**item) for item in _build_gpt_tool_results(mode, data, answer)],
         details=compact_details,
         error=error,

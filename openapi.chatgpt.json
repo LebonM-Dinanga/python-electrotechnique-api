@@ -3,7 +3,7 @@
   "info": {
     "title": "Electrotechnique GPT Action API",
     "description": "Minimal OpenAPI schema expose uniquement l'endpoint /gpt-tool pour ChatGPT Actions, avec calcul, simulation, dashboard temps reel, visualisation, ingestion live capteurs/automates, diagnostic d'ingenierie, recherche technique et workflow academique.",
-    "version": "2.4.0"
+    "version": "2.4.2"
   },
   "paths": {
     "/gpt-tool": {
@@ -483,6 +483,43 @@
           "answer": {
             "type": "string",
             "title": "Answer"
+          },
+          "resource_url": {
+            "type": "string",
+            "title": "Resource Url",
+            "default": ""
+          },
+          "stream_url": {
+            "type": "string",
+            "title": "Stream Url",
+            "default": ""
+          },
+          "plot_url": {
+            "type": "string",
+            "title": "Plot Url",
+            "default": ""
+          },
+          "canonical_query": {
+            "type": "string",
+            "title": "Canonical Query",
+            "default": ""
+          },
+          "minimum_inputs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Minimum Inputs"
+          },
+          "next_step": {
+            "type": "string",
+            "title": "Next Step",
+            "default": ""
+          },
+          "action_hint": {
+            "type": "string",
+            "title": "Action Hint",
+            "default": ""
           },
           "results": {
             "items": {
