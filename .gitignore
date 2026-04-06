@@ -8,3 +8,6 @@ __pycache__/
 .env.*
 .DS_Store
 python-electrotechnique-api/
+caddy_data/
+caddy_config/
+.vs/

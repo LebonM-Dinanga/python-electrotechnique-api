@@ -1,0 +1,48 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: electrogpt-api
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      UVICORN_WORKERS: ${UVICORN_WORKERS:-1}
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      - electrogpt
+
+  caddy:
+    image: caddy:2.9-alpine
+    container_name: electrogpt-caddy
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    env_file:
+      - .env
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - electrogpt
+
+volumes:
+  caddy_data:
+  caddy_config:
+
+networks:
+  electrogpt:
+    driver: bridge

@@ -80,6 +80,10 @@ Le projet combine :
 - `CHATGPT_ACTION_SETUP.md` : texte a coller dans le builder GPT
 - `ZAPIER_ACTION_SETUP.md` : regles de rebranchement de Zapier pour l'export
 - `RENDER_DEPLOYMENT.md` : guide de deploiement Render
+- `HETZNER_DEPLOYMENT.md` : guide de deploiement Hetzner Cloud
+- `Dockerfile` : image de production FastAPI
+- `docker-compose.hetzner.yml` : stack API + Caddy pour un VPS
+- `Caddyfile` : reverse proxy TLS automatique
 
 ## Installation locale
 
@@ -141,6 +145,30 @@ Puis ouvre :
 ```text
 http://127.0.0.1:8000/docs
 ```
+
+## Deploiement Hetzner Cloud
+
+Si tu veux sortir des limites Render, le chemin recommande est maintenant Hetzner Cloud avec Docker Compose.
+
+Le kit fourni dans le repo :
+
+- `Dockerfile`
+- `docker-compose.hetzner.yml`
+- `Caddyfile`
+- `HETZNER_DEPLOYMENT.md`
+
+Architecture recommande :
+
+- 1 VPS Hetzner Cloud Ubuntu
+- 1 Primary IP public
+- 1 Firewall Hetzner
+- Docker Compose
+- Caddy pour le TLS et le reverse proxy
+- `UVICORN_WORKERS=1` tant que la telemetry live reste stockee en memoire
+
+Guide complet :
+
+- [HETZNER_DEPLOYMENT.md](./HETZNER_DEPLOYMENT.md)
 
 ## Exemples d'utilisation
 
