@@ -69,7 +69,7 @@ Tu n'as pas besoin d'ouvrir :
 
 Avant le cutover :
 
-1. choisis ton domaine ou sous-domaine, par exemple `api.ton-domaine.com`
+1. choisis ton domaine ou sous-domaine, par exemple `api.lbmdinanga-tech.com`
 2. cree un enregistrement `A` vers l'IPv4 du serveur
 3. cree un enregistrement `AAAA` vers l'IPv6 si tu l'utilises
 4. baisse le TTL DNS a 300 secondes avant migration
@@ -85,14 +85,14 @@ Avant le cutover :
 Copie `.env.example` vers `.env`, puis adapte au serveur :
 
 ```text
-APP_DOMAIN=api.ton-domaine.com
-PUBLIC_BASE_URL=https://api.ton-domaine.com
+APP_DOMAIN=api.lbmdinanga-tech.com
+PUBLIC_BASE_URL=https://api.lbmdinanga-tech.com
 CONTACT_EMAIL=ton-email@example.com
 WOLFRAM_APP_ID=ta-cle-wolfram
 ARXIV_DOMAIN_FILTER=electrical engineering
-ALLOWED_ORIGINS=https://api.ton-domaine.com,http://127.0.0.1:8000,http://localhost:8000
-PLUGIN_LOGO_URL=https://api.ton-domaine.com/static/logo.png
-PLUGIN_LEGAL_URL=https://api.ton-domaine.com/legal
+ALLOWED_ORIGINS=https://api.lbmdinanga-tech.com,http://127.0.0.1:8000,http://localhost:8000
+PLUGIN_LOGO_URL=https://api.lbmdinanga-tech.com/static/logo.png
+PLUGIN_LEGAL_URL=https://api.lbmdinanga-tech.com/legal
 MAX_TELEMETRY_POINTS=600
 MQTT_BROKER_HOST=
 MQTT_BROKER_PORT=1883
@@ -223,3 +223,4 @@ Deux options rapides :
 - garde `UVICORN_WORKERS=1` tant que la telemetry live reste stockee en memoire
 - WebSocket et SSE passent correctement derriere Caddy
 - si tu veux plus de debit plus tard, le prochain vrai palier sera Redis + workers multiples
+

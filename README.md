@@ -179,7 +179,7 @@ Le mode monolithique `/gpt-tool` reste disponible, mais le mode recommande pour 
 Contrainte Builder GPT :
 
 - un meme domaine ne peut pas etre importe plusieurs fois comme ensembles d'actions distincts
-- sur `electrotechnique-gpt-tool.onrender.com`, il faut donc utiliser un seul pack d'actions si tu restes sur ce domaine
+- sur `api.lbmdinanga-tech.com`, il faut donc utiliser un seul pack d'actions si tu restes sur ce domaine
 
 Mode recommande :
 
@@ -190,16 +190,16 @@ Mode recommande :
 URLs d'import conseillees :
 
 ```text
-https://electrotechnique-gpt-tool.onrender.com/openapi.calc.json
-https://electrotechnique-gpt-tool.onrender.com/openapi.wolfram.json
-https://electrotechnique-gpt-tool.onrender.com/openapi.research.json
-https://electrotechnique-gpt-tool.onrender.com/openapi.simulation.json
-https://electrotechnique-gpt-tool.onrender.com/openapi.realtime.json
-https://electrotechnique-gpt-tool.onrender.com/openapi.diagnosis.json
-https://electrotechnique-gpt-tool.onrender.com/openapi.academic.json
-https://electrotechnique-gpt-tool.onrender.com/openapi.thesis.json
-https://electrotechnique-gpt-tool.onrender.com/openapi.live.json
-https://electrotechnique-gpt-tool.onrender.com/openapi.specialized.json
+https://api.lbmdinanga-tech.com/openapi.calc.json
+https://api.lbmdinanga-tech.com/openapi.wolfram.json
+https://api.lbmdinanga-tech.com/openapi.research.json
+https://api.lbmdinanga-tech.com/openapi.simulation.json
+https://api.lbmdinanga-tech.com/openapi.realtime.json
+https://api.lbmdinanga-tech.com/openapi.diagnosis.json
+https://api.lbmdinanga-tech.com/openapi.academic.json
+https://api.lbmdinanga-tech.com/openapi.thesis.json
+https://api.lbmdinanga-tech.com/openapi.live.json
+https://api.lbmdinanga-tech.com/openapi.specialized.json
 ```
 
 La procedure complete a coller dans le builder GPT est documentee dans [CHATGPT_ACTION_SETUP.md](D:/electrotechnique/python-electrotechnique-api/CHATGPT_ACTION_SETUP.md).
@@ -286,7 +286,7 @@ GET /live-dashboard?channel=atelier-ligne-1
 ```
 
 ```bash
-curl -X POST "https://electrotechnique-gpt-tool.onrender.com/telemetry-ingest" ^
+curl -X POST "https://api.lbmdinanga-tech.com/telemetry-ingest" ^
   -H "Content-Type: application/json" ^
   -d "{\"channel\":\"atelier-ligne-1\",\"source\":\"http-gateway\",\"values\":{\"temperature_c\":46.2,\"current_a\":18.4}}"
 ```
@@ -296,11 +296,11 @@ GET /modbus-read?host=192.168.1.10&port=502&unit_id=1&address=0&count=4&register
 ```
 
 ```text
-WebSocket ingest: wss://electrotechnique-gpt-tool.onrender.com/ws/telemetry-ingest/atelier-ligne-1
+WebSocket ingest: wss://api.lbmdinanga-tech.com/ws/telemetry-ingest/atelier-ligne-1
 ```
 
 ```text
-WebSocket watch: wss://electrotechnique-gpt-tool.onrender.com/ws/telemetry-watch/atelier-ligne-1
+WebSocket watch: wss://api.lbmdinanga-tech.com/ws/telemetry-watch/atelier-ligne-1
 ```
 
 Scripts de test MQTT prets dans :
@@ -373,19 +373,19 @@ Option rapide :
 Une fois le service en ligne, teste :
 
 ```text
-https://electrotechnique-gpt-tool.onrender.com/health
+https://api.lbmdinanga-tech.com/health
 ```
 
 ```text
-https://electrotechnique-gpt-tool.onrender.com/docs
+https://api.lbmdinanga-tech.com/docs
 ```
 
 ```text
-https://electrotechnique-gpt-tool.onrender.com/gpt-tool?input=integrate%20x^2
+https://api.lbmdinanga-tech.com/gpt-tool?input=integrate%20x^2
 ```
 
 ```text
-https://electrotechnique-gpt-tool.onrender.com/gpt-tool?input=simulate%20rc%20r=1000%20c=0.001%20v=5%20t=5
+https://api.lbmdinanga-tech.com/gpt-tool?input=simulate%20rc%20r=1000%20c=0.001%20v=5%20t=5
 ```
 
 Guide detaille :
@@ -397,14 +397,14 @@ Guide detaille :
 Une fois l'API deployee en HTTPS, utilise :
 
 ```text
-https://electrotechnique-gpt-tool.onrender.com/openapi.chatgpt.json
+https://api.lbmdinanga-tech.com/openapi.chatgpt.json
 ```
 
 Dans le builder GPT :
 
 - Action auth : `None`
 - Import schema from URL
-- URL : `https://electrotechnique-gpt-tool.onrender.com/openapi.chatgpt.json`
+- URL : `https://api.lbmdinanga-tech.com/openapi.chatgpt.json`
 
 Guide detaille :
 
@@ -433,3 +433,4 @@ Guide detaille :
 ## Licence
 
 Ajoute ici ta licence si tu veux publier le projet.
+

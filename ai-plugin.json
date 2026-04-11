@@ -9,10 +9,10 @@
   },
   "api": {
     "type": "openapi",
-    "url": "https://electrotechnique-gpt-tool.onrender.com/openapi.chatgpt.json",
+    "url": "https://api.lbmdinanga-tech.com/openapi.chatgpt.json",
     "is_user_authenticated": false
   },
   "logo_url": "https://placehold.co/512x512/png?text=ElectroGPT",
   "contact_email": "lebonmukendi17@gmail.com",
-  "legal_info_url": "https://electrotechnique-gpt-tool.onrender.com/legal"
+  "legal_info_url": "https://api.lbmdinanga-tech.com/legal"
 }

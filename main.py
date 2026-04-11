@@ -29,7 +29,7 @@ except ImportError:
 
 WOLFRAM_APP_ID = os.getenv("WOLFRAM_APP_ID", "").strip()
 CONTACT_EMAIL = os.getenv("CONTACT_EMAIL", "lebonmukendi17@gmail.com")
-DEFAULT_PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "https://electrotechnique-gpt-tool.onrender.com")
+DEFAULT_PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "https://api.lbmdinanga-tech.com")
 PLUGIN_CONTACT_EMAIL = CONTACT_EMAIL or "lebonmukendi17@gmail.com"
 PLUGIN_LEGAL_URL = os.getenv("PLUGIN_LEGAL_URL", "")
 PLUGIN_LOGO_URL = os.getenv("PLUGIN_LOGO_URL", "https://placehold.co/512x512/png?text=ElectroGPT")
@@ -37,7 +37,7 @@ DEFAULT_ALLOWED_ORIGINS = ",".join(
     [
         "http://127.0.0.1:8000",
         "http://localhost:8000",
-        "https://electrotechnique-gpt-tool.onrender.com",
+        "https://api.lbmdinanga-tech.com",
     ]
 )
 ALLOWED_ORIGINS = [origin.strip() for origin in os.getenv("ALLOWED_ORIGINS", DEFAULT_ALLOWED_ORIGINS).split(",") if origin.strip()]

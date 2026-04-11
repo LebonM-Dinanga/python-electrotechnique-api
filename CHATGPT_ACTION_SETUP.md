@@ -2,7 +2,7 @@
 
 Ton domaine public en HTTPS est :
 
-- `https://electrotechnique-gpt-tool.onrender.com`
+- `https://api.lbmdinanga-tech.com`
 
 ## Contrainte importante du builder GPT
 
@@ -18,14 +18,14 @@ Donc tu ne peux pas importer :
 comme actions separees si elles viennent toutes de :
 
 ```text
-electrotechnique-gpt-tool.onrender.com
+api.lbmdinanga-tech.com
 ```
 
 ## Alternative correcte
 
 Utilise :
 
-1. un seul pack ElectroGPT specialise sur ton domaine Render
+1. un seul pack ElectroGPT specialise sur ton domaine public
 2. Zapier comme action separee sur son propre domaine
 3. eventuellement un ancien proxy Wolfram externe, seulement s'il est sur un autre domaine
 
@@ -34,7 +34,7 @@ Utilise :
 Importe cette URL dans le builder GPT :
 
 ```text
-https://electrotechnique-gpt-tool.onrender.com/openapi.specialized.json
+https://api.lbmdinanga-tech.com/openapi.specialized.json
 ```
 
 Ce pack contient plusieurs endpoints specialises dans un seul schema :
@@ -195,17 +195,18 @@ Exporte ce plan de TFE dans Google Docs
 Pack principal :
 
 ```text
-https://electrotechnique-gpt-tool.onrender.com/openapi.specialized.json
+https://api.lbmdinanga-tech.com/openapi.specialized.json
 ```
 
 Schema legacy monolithique :
 
 ```text
-https://electrotechnique-gpt-tool.onrender.com/openapi.chatgpt.json
+https://api.lbmdinanga-tech.com/openapi.chatgpt.json
 ```
 
 Politique de confidentialite :
 
 ```text
-https://electrotechnique-gpt-tool.onrender.com/legal
+https://api.lbmdinanga-tech.com/legal
 ```
+

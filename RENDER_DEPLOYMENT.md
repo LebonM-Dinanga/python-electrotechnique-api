@@ -35,7 +35,7 @@ Variables d'environnement :
 - `WOLFRAM_APP_ID` : obligatoire, a definir comme secret Render
 - `CONTACT_EMAIL` : `lebonmukendi17@gmail.com`
 - `ARXIV_DOMAIN_FILTER` : `electrical engineering`
-- `PUBLIC_BASE_URL` : `https://electrotechnique-gpt-tool.onrender.com`
+- `PUBLIC_BASE_URL` : `https://api.lbmdinanga-tech.com`
 - `MQTT_BROKER_HOST` : ton broker MQTT
 - `MQTT_BROKER_PORT` : en general `1883`
 - `MQTT_TOPIC_PREFIX` : par exemple `electrogpt/telemetry`
@@ -55,51 +55,51 @@ Variables d'environnement :
 Ton URL publique Render est :
 
 ```text
-https://electrotechnique-gpt-tool.onrender.com
+https://api.lbmdinanga-tech.com
 ```
 
 Tests API :
 
 ```text
-https://electrotechnique-gpt-tool.onrender.com/health
+https://api.lbmdinanga-tech.com/health
 ```
 
 ```text
-https://electrotechnique-gpt-tool.onrender.com/docs
+https://api.lbmdinanga-tech.com/docs
 ```
 
 ```text
-https://electrotechnique-gpt-tool.onrender.com/gpt-tool?input=integrate%20x^2
+https://api.lbmdinanga-tech.com/gpt-tool?input=integrate%20x^2
 ```
 
 ```text
-https://electrotechnique-gpt-tool.onrender.com/gpt-tool?input=research%20transformer%20losses
+https://api.lbmdinanga-tech.com/gpt-tool?input=research%20transformer%20losses
 ```
 
 ```text
-https://electrotechnique-gpt-tool.onrender.com/gpt-tool?input=simulate%20rc%20r=1000%20c=0.001%20v=5%20t=5
+https://api.lbmdinanga-tech.com/gpt-tool?input=simulate%20rc%20r=1000%20c=0.001%20v=5%20t=5
 ```
 
 ```text
-https://electrotechnique-gpt-tool.onrender.com/gpt-tool?input=simulate%20transformer%20kva=100%20v1=20000%20v2=400%20load=0.8
+https://api.lbmdinanga-tech.com/gpt-tool?input=simulate%20transformer%20kva=100%20v1=20000%20v2=400%20load=0.8
 ```
 
 ```text
-https://electrotechnique-gpt-tool.onrender.com/gpt-tool?input=simulate%20three%20phase%20vll=400%20i=30%20pf=0.92%20connection=delta
+https://api.lbmdinanga-tech.com/gpt-tool?input=simulate%20three%20phase%20vll=400%20i=30%20pf=0.92%20connection=delta
 ```
 
 Tests ChatGPT Action :
 
 ```text
-https://electrotechnique-gpt-tool.onrender.com/openapi.chatgpt.json
+https://api.lbmdinanga-tech.com/openapi.chatgpt.json
 ```
 
 ```text
-https://electrotechnique-gpt-tool.onrender.com/.well-known/ai-plugin.json
+https://api.lbmdinanga-tech.com/.well-known/ai-plugin.json
 ```
 
 ```text
-https://electrotechnique-gpt-tool.onrender.com/legal
+https://api.lbmdinanga-tech.com/legal
 ```
 
 ## Ce qu'il faut coller dans ChatGPT Actions
@@ -107,7 +107,7 @@ https://electrotechnique-gpt-tool.onrender.com/legal
 Schema OpenAPI :
 
 ```text
-https://electrotechnique-gpt-tool.onrender.com/openapi.chatgpt.json
+https://api.lbmdinanga-tech.com/openapi.chatgpt.json
 ```
 
 Authentification :
@@ -145,7 +145,7 @@ Dans `Environment`, renseigne au minimum :
 MQTT_BROKER_HOST=broker.hivemq.com
 MQTT_BROKER_PORT=1883
 MQTT_TOPIC_PREFIX=electrogpt/telemetry
-PUBLIC_BASE_URL=https://electrotechnique-gpt-tool.onrender.com
+PUBLIC_BASE_URL=https://api.lbmdinanga-tech.com
 ```
 
 Si ton broker exige un login :
@@ -162,7 +162,7 @@ Puis redeploie le service.
 Ouvre :
 
 ```text
-https://electrotechnique-gpt-tool.onrender.com/connectors-status
+https://api.lbmdinanga-tech.com/connectors-status
 ```
 
 Tu dois voir :
@@ -176,7 +176,7 @@ Tu dois voir :
 Ouvre :
 
 ```text
-https://electrotechnique-gpt-tool.onrender.com/live-dashboard?channel=atelier-ligne-1
+https://api.lbmdinanga-tech.com/live-dashboard?channel=atelier-ligne-1
 ```
 
 Le dashboard est pret a ecouter le canal `atelier-ligne-1`.
@@ -238,7 +238,7 @@ mosquitto_pub -h broker.hivemq.com -p 1883 -t electrogpt/telemetry/atelier-ligne
 Reviens sur :
 
 ```text
-https://electrotechnique-gpt-tool.onrender.com/connectors-status
+https://api.lbmdinanga-tech.com/connectors-status
 ```
 
 Tu dois voir :
@@ -251,7 +251,7 @@ Tu dois voir :
 Dans :
 
 ```text
-https://electrotechnique-gpt-tool.onrender.com/live-dashboard?channel=atelier-ligne-1
+https://api.lbmdinanga-tech.com/live-dashboard?channel=atelier-ligne-1
 ```
 
 Tu dois voir :
@@ -265,7 +265,7 @@ Tu dois voir :
 Tu peux aussi ecouter le flux SSE brut :
 
 ```text
-https://electrotechnique-gpt-tool.onrender.com/telemetry-stream?channel=atelier-ligne-1
+https://api.lbmdinanga-tech.com/telemetry-stream?channel=atelier-ligne-1
 ```
 
 ### 11. Si rien n'apparait
@@ -284,7 +284,7 @@ Verifier dans cet ordre :
 Si tu veux juste valider le dashboard sans broker, injecte une trame HTTP :
 
 ```bash
-curl -X POST "https://electrotechnique-gpt-tool.onrender.com/telemetry-ingest" ^
+curl -X POST "https://api.lbmdinanga-tech.com/telemetry-ingest" ^
   -H "Content-Type: application/json" ^
   -d "{\"channel\":\"atelier-ligne-1\",\"source\":\"http-test\",\"values\":{\"temperature_c\":46.2,\"current_a\":18.4}}"
 ```
@@ -292,5 +292,6 @@ curl -X POST "https://electrotechnique-gpt-tool.onrender.com/telemetry-ingest" ^
 Puis ouvre :
 
 ```text
-https://electrotechnique-gpt-tool.onrender.com/live-dashboard?channel=atelier-ligne-1
+https://api.lbmdinanga-tech.com/live-dashboard?channel=atelier-ligne-1
 ```
+

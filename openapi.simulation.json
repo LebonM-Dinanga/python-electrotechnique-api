@@ -7,7 +7,7 @@
   },
   "servers": [
     {
-      "url": "https://electrotechnique-gpt-tool.onrender.com",
+      "url": "https://api.lbmdinanga-tech.com",
       "description": "Public HTTPS endpoint for ChatGPT Actions"
     }
   ],
@@ -236,3 +236,4 @@
     }
   }
 }
+

@@ -11,7 +11,7 @@ electrogpt/telemetry/atelier-ligne-1
 Dashboard a ouvrir pendant le test :
 
 ```text
-https://electrotechnique-gpt-tool.onrender.com/live-dashboard?channel=atelier-ligne-1
+https://api.lbmdinanga-tech.com/live-dashboard?channel=atelier-ligne-1
 ```
 
 ## Python
@@ -60,3 +60,4 @@ MQTT_PORT
 MQTT_TOPIC_PREFIX
 MQTT_CHANNEL
 ```
+
