@@ -38,6 +38,14 @@ DEFAULT_ALLOWED_ORIGINS = ",".join(
         "http://127.0.0.1:8000",
         "http://localhost:8000",
         "https://api.lbmdinanga-tech.com",
+        "https://wolfram.lbmdinanga-tech.com",
+        "https://research.lbmdinanga-tech.com",
+        "https://simulation.lbmdinanga-tech.com",
+        "https://realtime.lbmdinanga-tech.com",
+        "https://diagnosis.lbmdinanga-tech.com",
+        "https://academic.lbmdinanga-tech.com",
+        "https://thesis.lbmdinanga-tech.com",
+        "https://live.lbmdinanga-tech.com",
     ]
 )
 ALLOWED_ORIGINS = [origin.strip() for origin in os.getenv("ALLOWED_ORIGINS", DEFAULT_ALLOWED_ORIGINS).split(",") if origin.strip()]
@@ -2375,9 +2383,10 @@ def _extract_signal_series(payload: dict[str, Any], signal_name: str) -> list[tu
     return points
 
 
-def _build_simulation_visualizations(payload: dict[str, Any]) -> list[dict[str, Any]]:
+def _build_simulation_visualizations(payload: dict[str, Any], base_url: str | None = None) -> list[dict[str, Any]]:
     if payload.get("status") != "ok":
         return []
+    resolved_base_url = _get_base_url(override=base_url)
     query = payload.get("query", "")
     encoded_query = urlencode({"input": query})
     all_signals = _guess_plot_signals(payload)
@@ -2389,7 +2398,7 @@ def _build_simulation_visualizations(payload: dict[str, Any]) -> list[dict[str, 
             title=f"Dashboard temps reel {payload.get('kind', 'simulation')}",
             kind="dashboard",
             format="html",
-            url=f"{DEFAULT_PUBLIC_BASE_URL}/realtime-dashboard?{encoded_query}",
+            url=f"{resolved_base_url}/realtime-dashboard?{encoded_query}",
             description="Dashboard web avec streaming progressif des points de simulation.",
             signals=all_signals[: min(3, len(all_signals))],
         ).model_dump(),
@@ -2397,7 +2406,7 @@ def _build_simulation_visualizations(payload: dict[str, Any]) -> list[dict[str, 
             title=f"Courbe principale {payload.get('kind', 'simulation')}",
             kind="svg-plot",
             format="svg",
-            url=f"{DEFAULT_PUBLIC_BASE_URL}/simulate-plot?{encoded_query}&signals={first_group}",
+            url=f"{resolved_base_url}/simulate-plot?{encoded_query}&signals={first_group}",
             description="Visualisation SVG directe exploitable dans un navigateur ou une interface externe.",
             signals=all_signals[: min(3, len(all_signals))],
         ).model_dump()
@@ -2408,7 +2417,7 @@ def _build_simulation_visualizations(payload: dict[str, Any]) -> list[dict[str, 
                 title=f"Courbe focalisee {payload.get('kind', 'simulation')}",
                 kind="svg-plot",
                 format="svg",
-                url=f"{DEFAULT_PUBLIC_BASE_URL}/simulate-plot?{encoded_query}&signals={all_signals[0]}",
+                url=f"{resolved_base_url}/simulate-plot?{encoded_query}&signals={all_signals[0]}",
                 description="Version resserree sur le signal principal pour lecture rapide.",
                 signals=[all_signals[0]],
             ).model_dump()
@@ -2416,7 +2425,8 @@ def _build_simulation_visualizations(payload: dict[str, Any]) -> list[dict[str, 
     return assets
 
 
-def _build_simulation_streaming(payload: dict[str, Any], pace_ms: int = 120) -> dict[str, Any]:
+def _build_simulation_streaming(payload: dict[str, Any], pace_ms: int = 120, base_url: str | None = None) -> dict[str, Any]:
+    resolved_base_url = _get_base_url(override=base_url)
     query = payload.get("query", "")
     encoded_query = urlencode({"input": query})
     recommended_signals = _guess_plot_signals(payload)
@@ -2425,8 +2435,8 @@ def _build_simulation_streaming(payload: dict[str, Any], pace_ms: int = 120) -> 
         signal_suffix = "&signals=" + ",".join(recommended_signals[: min(3, len(recommended_signals))])
     return {
         "supported": payload.get("status") == "ok",
-        "dashboard_url": f"{DEFAULT_PUBLIC_BASE_URL}/realtime-dashboard?{encoded_query}",
-        "stream_url": f"{DEFAULT_PUBLIC_BASE_URL}/simulate-stream?{encoded_query}&pace_ms={pace_ms}{signal_suffix}",
+        "dashboard_url": f"{resolved_base_url}/realtime-dashboard?{encoded_query}",
+        "stream_url": f"{resolved_base_url}/simulate-stream?{encoded_query}&pace_ms={pace_ms}{signal_suffix}",
         "recommended_signals": recommended_signals,
         "pace_ms": pace_ms,
     }
@@ -2457,15 +2467,15 @@ def _build_simulation_interpretation(payload: dict[str, Any]) -> list[str]:
     return summary
 
 
-def _finalize_simulation_payload(payload: dict[str, Any]) -> dict[str, Any]:
+def _finalize_simulation_payload(payload: dict[str, Any], base_url: str | None = None) -> dict[str, Any]:
     if payload.get("status") != "ok":
         payload.setdefault("interpretation", [])
         payload.setdefault("visualizations", [])
         payload.setdefault("streaming", {})
         return payload
     payload["interpretation"] = _build_simulation_interpretation(payload)
-    payload["visualizations"] = _build_simulation_visualizations(payload)
-    payload["streaming"] = _build_simulation_streaming(payload)
+    payload["visualizations"] = _build_simulation_visualizations(payload, base_url=base_url)
+    payload["streaming"] = _build_simulation_streaming(payload, base_url=base_url)
     return payload
 
 
@@ -2473,8 +2483,8 @@ def _format_sse_event(event_name: str, data: dict[str, Any]) -> str:
     return f"event: {event_name}\ndata: {json.dumps(data)}\n\n"
 
 
-def _build_realtime_dashboard_payload(query: str, pace_ms: int = 120) -> dict[str, Any]:
-    simulation_payload = _simulate_from_query(query)
+def _build_realtime_dashboard_payload(query: str, pace_ms: int = 120, base_url: str | None = None) -> dict[str, Any]:
+    simulation_payload = _simulate_from_query(query, base_url=base_url)
     if simulation_payload.get("status") != "ok":
         return RealtimeSimulationResponse(
             status="error",
@@ -3240,7 +3250,7 @@ def _simulate_dc_motor(query: str, steps_default: int = 160) -> dict[str, Any]:
     ).model_dump()
 
 
-def _simulate_from_query(query: str, steps_default: int = 80) -> dict[str, Any]:
+def _simulate_from_query(query: str, steps_default: int = 80, base_url: str | None = None) -> dict[str, Any]:
     lowered_query = query.lower()
     if re.search(r"\brlc\b|resonan|resonance", lowered_query):
         kind = "rlc"
@@ -3275,13 +3285,16 @@ def _simulate_from_query(query: str, steps_default: int = 80) -> dict[str, Any]:
     steps = _extract_named_int(lowered_query, ["steps", "points"]) or steps_default
 
     if kind == "three-phase":
-        return _finalize_simulation_payload(_simulate_three_phase(query))
+        return _finalize_simulation_payload(_simulate_three_phase(query), base_url=base_url)
 
     if kind == "transformer":
-        return _finalize_simulation_payload(_simulate_transformer(query))
+        return _finalize_simulation_payload(_simulate_transformer(query), base_url=base_url)
 
     if kind == "dc-motor":
-        return _finalize_simulation_payload(_simulate_dc_motor(query, steps_default=max(steps_default, 120)))
+        return _finalize_simulation_payload(
+            _simulate_dc_motor(query, steps_default=max(steps_default, 120)),
+            base_url=base_url,
+        )
 
     if kind == "rlc":
         inductance_h = _extract_named_float(lowered_query, ["l", "ind", "inductance"])
@@ -3309,7 +3322,8 @@ def _simulate_from_query(query: str, steps_default: int = 80) -> dict[str, Any]:
                 simulation_mode,
                 initial_voltage_v,
                 initial_current_a,
-            )
+            ),
+            base_url=base_url,
         )
 
     if kind == "rc":
@@ -3325,7 +3339,8 @@ def _simulate_from_query(query: str, steps_default: int = 80) -> dict[str, Any]:
                 "dimensionnement et lecture de la charge/decharge",
             )
         return _finalize_simulation_payload(
-            _simulate_rc(query, resistance_ohms, capacitance_f, source_voltage_v, duration_s, steps, simulation_mode, initial_voltage_v)
+            _simulate_rc(query, resistance_ohms, capacitance_f, source_voltage_v, duration_s, steps, simulation_mode, initial_voltage_v),
+            base_url=base_url,
         )
 
     inductance_h = _extract_named_float(lowered_query, ["l", "ind", "inductance"])
@@ -3340,7 +3355,8 @@ def _simulate_from_query(query: str, steps_default: int = 80) -> dict[str, Any]:
             "dimensionnement et lecture de la montee du courant",
         )
     return _finalize_simulation_payload(
-        _simulate_rl(query, resistance_ohms, inductance_h, source_voltage_v, duration_s, steps, simulation_mode, initial_current_a)
+        _simulate_rl(query, resistance_ohms, inductance_h, source_voltage_v, duration_s, steps, simulation_mode, initial_current_a),
+        base_url=base_url,
     )
 
 
@@ -3563,15 +3579,7 @@ def _build_realtime_brief(payload: dict[str, Any]) -> str:
     dashboard_url = payload.get("dashboard_url", "")
     stream_url = payload.get("stream_url", "")
     if dashboard_url:
-        if stream_url:
-            return (
-                f"Dashboard temps reel externe pret. Ouvre directement cette URL: {dashboard_url} . "
-                f"Flux SSE associe: {stream_url} . N'essaie pas de generer un dashboard local de remplacement."
-            )
-        return (
-            f"Dashboard temps reel externe pret. Ouvre directement cette URL: {dashboard_url} . "
-            "N'essaie pas de generer un dashboard local de remplacement."
-        )
+        return "Dashboard temps reel externe pret."
     return (
         "Dashboard temps reel externe pret. Donne a l'utilisateur l'URL `details.dashboard_url` et le flux "
         "`details.stream_url`. N'essaie pas de generer un dashboard local de remplacement si ces URLs sont presentes."
@@ -4171,8 +4179,8 @@ def _build_research_action_payload(query: str, max_results: int, auto_filter: bo
         ).model_dump()
 
 
-def _build_simulation_action_payload(query: str) -> dict[str, Any]:
-    data = _simulate_from_query(query)
+def _build_simulation_action_payload(query: str, base_url: str | None = None) -> dict[str, Any]:
+    data = _simulate_from_query(query, base_url=base_url)
     compact = _compact_simulation_details(data)
     dashboard_url = compact.get("dashboard_url", "")
     plot_url = compact.get("plot_url", "")
@@ -4207,8 +4215,8 @@ def _build_simulation_action_payload(query: str) -> dict[str, Any]:
     ).model_dump()
 
 
-def _build_realtime_action_payload(query: str, pace_ms: int) -> dict[str, Any]:
-    data = _build_realtime_dashboard_payload(query, pace_ms=pace_ms)
+def _build_realtime_action_payload(query: str, pace_ms: int, base_url: str | None = None) -> dict[str, Any]:
+    data = _build_realtime_dashboard_payload(query, pace_ms=pace_ms, base_url=base_url)
     simulation = data.get("simulation", {}) if isinstance(data.get("simulation"), dict) else {}
     return RealtimeActionResponse(
         status=data.get("status", "ok"),
@@ -5141,6 +5149,7 @@ def engineering_diagnosis(
     description="Prepare un dashboard web et un flux SSE pour rejouer une simulation de maniere progressive dans le navigateur.",
 )
 def realtime_simulation(
+    request: Request,
     query: str | None = Query(None, min_length=2, max_length=500, description="Requete de simulation a diffuser"),
     input_text: str | None = Query(
         None,
@@ -5158,7 +5167,7 @@ def realtime_simulation(
             detail="Fournis un parametre 'query' ou 'input'.",
         )
 
-    return _build_realtime_dashboard_payload(raw_query, pace_ms=pace_ms)
+    return _build_realtime_dashboard_payload(raw_query, pace_ms=pace_ms, base_url=_get_base_url(request=request))
 
 
 @app.get(
@@ -5169,6 +5178,7 @@ def realtime_simulation(
     description="Simulation RC, RL, RLC, transformateur, triphase ou moteur DC a partir d'une requete libre avec parametres nommes.",
 )
 def simulate(
+    request: Request,
     query: str | None = Query(None, min_length=2, max_length=300, description="Requete de simulation libre"),
     input_text: str | None = Query(
         None,
@@ -5185,7 +5195,7 @@ def simulate(
             detail="Fournis un parametre 'query' ou 'input'.",
         )
 
-    return _simulate_from_query(raw_query)
+    return _simulate_from_query(raw_query, base_url=_get_base_url(request=request))
 
 
 @app.get(
@@ -5628,6 +5638,7 @@ def research(
     description="Endpoint optimise pour un assistant GPT: detecte le bon mode, expose le redirect utile, et execute directement l'outil si necessaire.",
 )
 def smart_query(
+    request: Request,
     query: str | None = Query(None, min_length=2, max_length=300, description="Question a router intelligemment"),
     input_text: str | None = Query(
         None,
@@ -5684,7 +5695,7 @@ def smart_query(
                 )
 
         if route == "simulation":
-            payload = _simulate_from_query(normalized_query)
+            payload = _simulate_from_query(normalized_query, base_url=_get_base_url(request=request))
             return _build_smart_payload(
                 status=payload.get("status", "ok"),
                 mode="simulation",
@@ -5700,7 +5711,7 @@ def smart_query(
             )
 
         if route == "realtime":
-            payload = _build_realtime_dashboard_payload(normalized_query)
+            payload = _build_realtime_dashboard_payload(normalized_query, base_url=_get_base_url(request=request))
             return _build_smart_payload(
                 status=payload.get("status", "ok"),
                 mode="realtime",
@@ -5716,7 +5727,7 @@ def smart_query(
             )
 
         if route == "live":
-            payload = _build_live_connector_payload(normalized_query, DEFAULT_PUBLIC_BASE_URL)
+            payload = _build_live_connector_payload(normalized_query, _get_base_url(request=request))
             return _build_smart_payload(
                 status=payload.get("status", "ok"),
                 mode="live",
@@ -5844,6 +5855,7 @@ def smart_query(
     description="Version minimale et stable pour les Actions ChatGPT. Meme schema JSON dans tous les cas.",
 )
 def gpt_tool(
+    request: Request,
     query: str | None = Query(None, min_length=2, max_length=300, description="Question a traiter"),
     input_text: str | None = Query(
         None,
@@ -5867,6 +5879,7 @@ def gpt_tool(
 
     try:
         smart_payload = smart_query(
+            request=request,
             query=raw_query,
             max_results=_get_int_param(max_results, 3),
             auto_filter=_get_bool_param(auto_filter, True),
@@ -5940,11 +5953,12 @@ def action_research(
     description="Action ChatGPT specialisee pour les simulations electrotechniques compactes avec liens de visualisation.",
 )
 def action_simulation(
+    request: Request,
     query: str | None = Query(None, min_length=2, max_length=500, description="Requete de simulation"),
     input_text: str | None = Query(None, alias="input", min_length=2, max_length=500, description="Alias principal"),
 ):
     raw_query = _resolve_action_query(query, input_text)
-    return _build_simulation_action_payload(raw_query)
+    return _build_simulation_action_payload(raw_query, base_url=_get_base_url(request=request))
 
 
 @app.get(
@@ -5954,12 +5968,13 @@ def action_simulation(
     description="Action ChatGPT specialisee pour obtenir un dashboard temps reel et un flux SSE externes.",
 )
 def action_realtime(
+    request: Request,
     query: str | None = Query(None, min_length=2, max_length=500, description="Demande de dashboard ou de streaming"),
     input_text: str | None = Query(None, alias="input", min_length=2, max_length=500, description="Alias principal"),
     pace_ms: int = Query(120, ge=20, le=2000, description="Cadence du flux SSE"),
 ):
     raw_query = _resolve_action_query(query, input_text)
-    return _build_realtime_action_payload(raw_query, pace_ms=pace_ms)
+    return _build_realtime_action_payload(raw_query, pace_ms=pace_ms, base_url=_get_base_url(request=request))
 
 
 @app.get(

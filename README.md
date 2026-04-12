@@ -165,6 +165,7 @@ Architecture recommande :
 - Docker Compose
 - Caddy pour le TLS et le reverse proxy
 - `UVICORN_WORKERS=1` tant que la telemetry live reste stockee en memoire
+- 1 sous-domaine par action GPT pour eviter les limites du builder sur un gros schema unique
 
 Guide complet :
 
@@ -174,35 +175,25 @@ Guide complet :
 
 ## ChatGPT Actions recommandees
 
-Le mode monolithique `/gpt-tool` reste disponible, mais le mode recommande pour le builder GPT est maintenant le mode multi-actions.
+Le builder GPT est plus stable quand chaque outil specialise est importe depuis un sous-domaine distinct.
 
-Contrainte Builder GPT :
+Mode recommande sur Hetzner :
 
-- un meme domaine ne peut pas etre importe plusieurs fois comme ensembles d'actions distincts
-- sur `api.lbmdinanga-tech.com`, il faut donc utiliser un seul pack d'actions si tu restes sur ce domaine
+- Wolfram : `https://wolfram.lbmdinanga-tech.com/openapi.wolfram.json`
+- Research : `https://research.lbmdinanga-tech.com/openapi.research.json`
+- Simulation : `https://simulation.lbmdinanga-tech.com/openapi.simulation.json`
+- Realtime : `https://realtime.lbmdinanga-tech.com/openapi.realtime.json`
+- Diagnosis : `https://diagnosis.lbmdinanga-tech.com/openapi.diagnosis.json`
+- Academic : `https://academic.lbmdinanga-tech.com/openapi.academic.json`
+- Thesis : `https://thesis.lbmdinanga-tech.com/openapi.thesis.json`
+- Live : `https://live.lbmdinanga-tech.com/openapi.live.json`
+- Zapier : action separee sur le domaine Zapier
 
-Mode recommande :
+Fallback seulement si tu ne peux pas creer les sous-domaines :
 
-- `openapi.specialized.json` pour tout le pack ElectroGPT sur ton domaine Render
-- Zapier comme action separee sur son propre domaine
-- eventuellement un ancien proxy Wolfram, seulement s'il est sur un autre domaine
+- `https://api.lbmdinanga-tech.com/openapi.specialized.json`
 
-URLs d'import conseillees :
-
-```text
-https://api.lbmdinanga-tech.com/openapi.calc.json
-https://api.lbmdinanga-tech.com/openapi.wolfram.json
-https://api.lbmdinanga-tech.com/openapi.research.json
-https://api.lbmdinanga-tech.com/openapi.simulation.json
-https://api.lbmdinanga-tech.com/openapi.realtime.json
-https://api.lbmdinanga-tech.com/openapi.diagnosis.json
-https://api.lbmdinanga-tech.com/openapi.academic.json
-https://api.lbmdinanga-tech.com/openapi.thesis.json
-https://api.lbmdinanga-tech.com/openapi.live.json
-https://api.lbmdinanga-tech.com/openapi.specialized.json
-```
-
-La procedure complete a coller dans le builder GPT est documentee dans [CHATGPT_ACTION_SETUP.md](D:/electrotechnique/python-electrotechnique-api/CHATGPT_ACTION_SETUP.md).
+La procedure builder complete est documentee dans [CHATGPT_ACTION_SETUP.md](D:/electrotechnique/python-electrotechnique-api/CHATGPT_ACTION_SETUP.md).
 
 ### Calcul scientifique
 
@@ -394,17 +385,27 @@ Guide detaille :
 
 ## Branchement ChatGPT Action
 
-Une fois l'API deployee en HTTPS, utilise :
+Une fois l'API deployee en HTTPS, n'importe pas d'abord le schema monolithique.
+
+Utilise les schemas specialises :
 
 ```text
-https://api.lbmdinanga-tech.com/openapi.chatgpt.json
+https://wolfram.lbmdinanga-tech.com/openapi.wolfram.json
+https://research.lbmdinanga-tech.com/openapi.research.json
+https://simulation.lbmdinanga-tech.com/openapi.simulation.json
+https://realtime.lbmdinanga-tech.com/openapi.realtime.json
+https://diagnosis.lbmdinanga-tech.com/openapi.diagnosis.json
+https://academic.lbmdinanga-tech.com/openapi.academic.json
+https://thesis.lbmdinanga-tech.com/openapi.thesis.json
+https://live.lbmdinanga-tech.com/openapi.live.json
 ```
 
 Dans le builder GPT :
 
 - Action auth : `None`
 - Import schema from URL
-- URL : `https://api.lbmdinanga-tech.com/openapi.chatgpt.json`
+- ajoute chaque action separement
+- ajoute Zapier ensuite
 
 Guide detaille :
 

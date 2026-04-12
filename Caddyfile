@@ -2,7 +2,7 @@
     email {$CONTACT_EMAIL}
 }
 
-{$APP_DOMAIN} {
+(electrogpt_common) {
     encode zstd gzip
 
     header {
@@ -13,4 +13,40 @@
     }
 
     reverse_proxy api:8000
+}
+
+{$APP_DOMAIN} {
+    import electrogpt_common
+}
+
+{$WOLFRAM_DOMAIN} {
+    import electrogpt_common
+}
+
+{$RESEARCH_DOMAIN} {
+    import electrogpt_common
+}
+
+{$SIMULATION_DOMAIN} {
+    import electrogpt_common
+}
+
+{$REALTIME_DOMAIN} {
+    import electrogpt_common
+}
+
+{$DIAGNOSIS_DOMAIN} {
+    import electrogpt_common
+}
+
+{$ACADEMIC_DOMAIN} {
+    import electrogpt_common
+}
+
+{$THESIS_DOMAIN} {
+    import electrogpt_common
+}
+
+{$LIVE_DOMAIN} {
+    import electrogpt_common
 }

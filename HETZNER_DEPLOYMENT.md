@@ -67,12 +67,26 @@ Tu n'as pas besoin d'ouvrir :
 
 ## Preparation DNS
 
+Pour eviter le probleme persistant du builder GPT avec un gros pack d'actions sur un seul domaine, la configuration recommandee sur Hetzner est :
+
+- `api.lbmdinanga-tech.com` : sante, docs, endpoint general et fallback
+- `wolfram.lbmdinanga-tech.com` : action calcul
+- `research.lbmdinanga-tech.com` : action recherche
+- `simulation.lbmdinanga-tech.com` : action simulation
+- `realtime.lbmdinanga-tech.com` : action dashboard temps reel
+- `diagnosis.lbmdinanga-tech.com` : action diagnostic
+- `academic.lbmdinanga-tech.com` : action academic
+- `thesis.lbmdinanga-tech.com` : action thesis
+- `live.lbmdinanga-tech.com` : action live capteurs / automates
+
+Tous ces sous-domaines pointent vers le meme VPS et le meme backend FastAPI. La separation est uniquement faite pour que le builder GPT voie plusieurs domaines d'actions distincts.
+
 Avant le cutover :
 
-1. choisis ton domaine ou sous-domaine, par exemple `api.lbmdinanga-tech.com`
-2. cree un enregistrement `A` vers l'IPv4 du serveur
-3. cree un enregistrement `AAAA` vers l'IPv6 si tu l'utilises
-4. baisse le TTL DNS a 300 secondes avant migration
+1. cree un enregistrement `A` pour chaque sous-domaine vers l'IPv4 du serveur
+2. cree un enregistrement `AAAA` pour chaque sous-domaine si tu utilises IPv6
+3. baisse le TTL DNS a 300 secondes avant migration
+4. verifie que tous les sous-domaines resolvent bien vers le VPS avant d'importer les actions
 
 ## Fichiers ajoutes pour Hetzner
 
@@ -86,11 +100,19 @@ Copie `.env.example` vers `.env`, puis adapte au serveur :
 
 ```text
 APP_DOMAIN=api.lbmdinanga-tech.com
+WOLFRAM_DOMAIN=wolfram.lbmdinanga-tech.com
+RESEARCH_DOMAIN=research.lbmdinanga-tech.com
+SIMULATION_DOMAIN=simulation.lbmdinanga-tech.com
+REALTIME_DOMAIN=realtime.lbmdinanga-tech.com
+DIAGNOSIS_DOMAIN=diagnosis.lbmdinanga-tech.com
+ACADEMIC_DOMAIN=academic.lbmdinanga-tech.com
+THESIS_DOMAIN=thesis.lbmdinanga-tech.com
+LIVE_DOMAIN=live.lbmdinanga-tech.com
 PUBLIC_BASE_URL=https://api.lbmdinanga-tech.com
 CONTACT_EMAIL=ton-email@example.com
 WOLFRAM_APP_ID=ta-cle-wolfram
 ARXIV_DOMAIN_FILTER=electrical engineering
-ALLOWED_ORIGINS=https://api.lbmdinanga-tech.com,http://127.0.0.1:8000,http://localhost:8000
+ALLOWED_ORIGINS=https://api.lbmdinanga-tech.com,https://wolfram.lbmdinanga-tech.com,https://research.lbmdinanga-tech.com,https://simulation.lbmdinanga-tech.com,https://realtime.lbmdinanga-tech.com,https://diagnosis.lbmdinanga-tech.com,https://academic.lbmdinanga-tech.com,https://thesis.lbmdinanga-tech.com,https://live.lbmdinanga-tech.com,http://127.0.0.1:8000,http://localhost:8000
 PLUGIN_LOGO_URL=https://api.lbmdinanga-tech.com/static/logo.png
 PLUGIN_LEGAL_URL=https://api.lbmdinanga-tech.com/legal
 MAX_TELEMETRY_POINTS=600
@@ -157,6 +179,14 @@ Quand Caddy a obtenu le certificat TLS :
 - `https://<APP_DOMAIN>/health`
 - `https://<APP_DOMAIN>/docs`
 - `https://<APP_DOMAIN>/openapi.specialized.json`
+- `https://<WOLFRAM_DOMAIN>/openapi.wolfram.json`
+- `https://<RESEARCH_DOMAIN>/openapi.research.json`
+- `https://<SIMULATION_DOMAIN>/openapi.simulation.json`
+- `https://<REALTIME_DOMAIN>/openapi.realtime.json`
+- `https://<DIAGNOSIS_DOMAIN>/openapi.diagnosis.json`
+- `https://<ACADEMIC_DOMAIN>/openapi.academic.json`
+- `https://<THESIS_DOMAIN>/openapi.thesis.json`
+- `https://<LIVE_DOMAIN>/openapi.live.json`
 
 ## Migration depuis Render
 
@@ -178,6 +208,17 @@ Ordre recommande :
 - `/openapi.specialized.json`
 - `/openapi.chatgpt.json`
 - `/legal`
+
+### Schemas d'actions separees
+
+- `https://wolfram.lbmdinanga-tech.com/openapi.wolfram.json`
+- `https://research.lbmdinanga-tech.com/openapi.research.json`
+- `https://simulation.lbmdinanga-tech.com/openapi.simulation.json`
+- `https://realtime.lbmdinanga-tech.com/openapi.realtime.json`
+- `https://diagnosis.lbmdinanga-tech.com/openapi.diagnosis.json`
+- `https://academic.lbmdinanga-tech.com/openapi.academic.json`
+- `https://thesis.lbmdinanga-tech.com/openapi.thesis.json`
+- `https://live.lbmdinanga-tech.com/openapi.live.json`
 
 ### Outils
 
